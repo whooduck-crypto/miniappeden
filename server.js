@@ -9,12 +9,15 @@
  * node server.js
  */
 
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const TelegramBot = require('node-telegram-bot-api');
-const fs = require('fs');
-const path = require('path');
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import TelegramBot from 'node-telegram-bot-api';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -492,4 +495,3 @@ app.listen(PORT, () => {
   console.log(`   GET    /health\n`);
 });
 
-module.exports = app;

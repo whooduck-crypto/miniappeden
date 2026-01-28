@@ -4,7 +4,11 @@
  * Используется для сохранения данных игроков, покупок, турниров и т.д.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'miniappeden.netlify.app/api';
+// Use localhost for development, production URL for production
+const isDev = !import.meta.env.PROD;
+const API_URL = isDev 
+  ? 'http://localhost:3000/api'
+  : (import.meta.env.VITE_API_URL || 'https://miniappeden.netlify.app/api');
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 interface RequestOptions {
@@ -33,7 +37,16 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
     });
 
     if (!response.ok) {
+      const text = await response.text();
+      console.error(`API Error Response: ${text}`);
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      const text = await response.text();
+      console.error(`Invalid Content-Type: ${contentType}, Response: ${text}`);
+      throw new Error(`Invalid response format: expected JSON, got ${contentType}`);
     }
 
     return await response.json();
