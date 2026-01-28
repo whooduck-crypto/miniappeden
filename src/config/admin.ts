@@ -25,6 +25,44 @@ export const ADMIN_CONFIG = {
 }
 
 /**
+ * Получить ID пользователя из Telegram Mini App
+ * Пробует несколько способов получения ID
+ */
+export function getTelegramUserId(): number | null {
+  if (typeof window === 'undefined') return null
+  
+  const tg = (window as any).Telegram
+  
+  // Способ 1: Через WebApp.initDataUnsafe (стандартный способ)
+  const webAppUser = tg?.WebApp?.initDataUnsafe?.user?.id
+  if (webAppUser) {
+    console.log('📌 User ID из WebApp.initDataUnsafe:', webAppUser)
+    return webAppUser
+  }
+  
+  // Способ 2: Через WebApp.initData парсинг
+  try {
+    const initData = tg?.WebApp?.initData
+    if (initData) {
+      const params = new URLSearchParams(initData)
+      const userStr = params.get('user')
+      if (userStr) {
+        const userData = JSON.parse(decodeURIComponent(userStr))
+        if (userData?.id) {
+          console.log('📌 User ID из WebApp.initData парсинга:', userData.id)
+          return userData.id
+        }
+      }
+    }
+  } catch (e) {
+    console.log('⚠️ Ошибка парсинга WebApp.initData')
+  }
+  
+  console.log('❌ User ID не найден')
+  return null
+}
+
+/**
  * Проверить, является ли пользователь администратором
  */
 export function isAdmin(userId: number | null | undefined): boolean {
@@ -39,7 +77,7 @@ export function isAdmin(userId: number | null | undefined): boolean {
   console.log('🔐 Admin Check:')
   console.log('  - User ID:', userId)
   console.log('  - Admin IDs:', adminIds)
-  console.log('  - Is Admin:', isAdminUser)
+  console.log('  - Is Admin:', isAdminUser ? '✅ ДА' : '❌ НЕТ')
   
   return isAdminUser
 }
