@@ -11,8 +11,19 @@ export function TournamentsPage() {
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
   const [joining, setJoining] = useState<number | null>(null)
 
+  // Загружаем турниры при монтировании
   useEffect(() => {
     fetchTournaments()
+  }, [fetchTournaments])
+
+  // Периодически обновляем список турниров (каждые 5 секунд)
+  // Это обеспечивает синхронизацию при создании новых турниров в админке
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchTournaments()
+    }, 5000)
+
+    return () => clearInterval(interval)
   }, [fetchTournaments])
 
   const filtered = tournaments.filter(t => {

@@ -13,6 +13,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const TelegramBot = require('node-telegram-bot-api');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,9 +34,42 @@ const shopItems = [
   { id: 3, name: 'VIP Badge', price: 300, category: 'badge', emoji: '👑' },
 ];
 
-// Хранилище турниров
-const tournaments = new Map();
-let tournamentIdCounter = 1;
+// ===== PERSISTENCE: TOURNAMENTS =====
+const TOURNAMENTS_FILE = path.join(__dirname, 'data', 'tournaments.json');
+
+// Убедимся, что папка data существует
+if (!fs.existsSync(path.join(__dirname, 'data'))) {
+  fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+}
+
+// Функция для загрузки турниров из файла
+function loadTournaments() {
+  try {
+    if (fs.existsSync(TOURNAMENTS_FILE)) {
+      const data = fs.readFileSync(TOURNAMENTS_FILE, 'utf-8');
+      const tournamentsData = JSON.parse(data);
+      return new Map(tournamentsData.map(t => [t.id, t]));
+    }
+  } catch (err) {
+    console.error('Error loading tournaments:', err);
+  }
+  return new Map();
+}
+
+// Функция для сохранения турниров в файл
+function saveTournaments(tournamentsMap) {
+  try {
+    const data = Array.from(tournamentsMap.values());
+    fs.writeFileSync(TOURNAMENTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    console.log('Tournaments saved to file');
+  } catch (err) {
+    console.error('Error saving tournaments:', err);
+  }
+}
+
+// Хранилище турниров (загружаем из файла)
+let tournaments = loadTournaments();
+let tournamentIdCounter = Math.max(...Array.from(tournaments.keys()).map(k => k), 0) + 1;
 
 // ===== ROUTES: USERS =====
 app.post('/api/users', (req, res) => {
@@ -217,6 +252,7 @@ app.post('/api/tournaments', (req, res) => {
   };
 
   tournaments.set(id, newTournament);
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
   res.json(newTournament);
 });
 
@@ -229,6 +265,7 @@ app.put('/api/tournaments/:tournamentId', (req, res) => {
 
   const updated = { ...tournament, ...req.body };
   tournaments.set(tournament.id, updated);
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
   res.json(updated);
 });
 
@@ -240,6 +277,7 @@ app.delete('/api/tournaments/:tournamentId', (req, res) => {
   }
 
   tournaments.delete(id);
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
   res.json({ success: true, message: 'Tournament deleted' });
 });
 
@@ -276,6 +314,8 @@ app.post('/api/tournaments/join', (req, res) => {
   tournament.currentParticipants += 1;
   user.balance -= tournament.entryFee;
 
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
+
   res.json({
     success: true,
     message: 'Joined tournament',
@@ -299,6 +339,8 @@ app.post('/api/tournaments/leave', (req, res) => {
 
   tournament.participants.splice(index, 1);
   tournament.currentParticipants -= 1;
+
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
 
   res.json({
     success: true,
@@ -338,6 +380,8 @@ app.post('/api/tournaments/:tournamentId/finish', (req, res) => {
       }
     }
   });
+
+  saveTournaments(tournaments);  // 💾 Сохраняем в файл
 
   res.json({
     success: true,

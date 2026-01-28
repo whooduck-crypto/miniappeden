@@ -4,7 +4,7 @@
  * Используется для сохранения данных игроков, покупок, турниров и т.д.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'miniappeden.netlify.app/api';
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 interface RequestOptions {

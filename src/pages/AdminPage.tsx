@@ -73,8 +73,10 @@ export function AdminPage() {
         entryFee: 100,
         prizePool: 1000,
       })
+      alert('✅ Турнир успешно создан! Он уже видна на странице "Турниры"')
     } catch (err) {
       console.error('Failed to create tournament:', err)
+      alert('❌ Ошибка при создании турнира')
     } finally {
       setCreating(false)
     }
