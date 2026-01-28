@@ -1,8 +1,19 @@
-import '../App.css';
+import { useEffect, useState } from 'react'
+import '../App.css'
+import { UserAvatar } from '../components/UserAvatar'
+import { getTelegramUserInfo } from '../config/telegram'
 
 export function ProfilePage() {
+  const [telegramUser, setTelegramUser] = useState<any>(null)
+
+  useEffect(() => {
+    const user = getTelegramUserInfo()
+    setTelegramUser(user)
+    console.log('📱 ProfilePage - Telegram User:', user)
+  }, [])
+
   const userStats = {
-    username: 'YourPlayer',
+    username: telegramUser?.username || telegramUser?.first_name || 'YourPlayer',
     level: 12,
     experience: 6234,
     experienceToNextLevel: 10000,
@@ -35,7 +46,7 @@ export function ProfilePage() {
       <h1>👤 Профиль</h1>
 
       <div className="profile-header">
-        <div className="profile-avatar">🎮</div>
+        <UserAvatar />
         <div className="profile-info">
           <h2>{userStats.username}</h2>
           <p className="profile-rank">Место #{userStats.rank} • Уровень {userStats.level}</p>

@@ -1,9 +1,28 @@
-import '../App.css';
+import { useEffect, useState } from 'react'
+import '../App.css'
+import { UserAvatarSmall } from '../components/UserAvatar'
+import { getTelegramUserInfo } from '../config/telegram'
 
 export function HomePage() {
+  const [telegramUser, setTelegramUser] = useState<any>(null)
+
+  useEffect(() => {
+    const user = getTelegramUserInfo()
+    setTelegramUser(user)
+  }, [])
+
   return (
     <div className="page home-page">
       <div className="header-section">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <UserAvatarSmall size={50} />
+          <div>
+            <h2 style={{ margin: '0' }}>Привет, {telegramUser?.first_name || 'игрок'}! 👋</h2>
+            <p style={{ margin: '4px 0', fontSize: '14px', opacity: 0.8 }}>
+              Добро пожаловать в Games Arena
+            </p>
+          </div>
+        </div>
         <h1>🎮 Telegram Games Arena</h1>
         <p className="subtitle">Играй, побеждай и зарабатывай!</p>
       </div>
