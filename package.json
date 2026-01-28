@@ -1,0 +1,15 @@
+{
+  "name": "miniapp",
+  "version": "1.0.0",
+  "description": "Telegram Mini App",
+  "type": "module",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && npm install && npm start",
+    "dev": "cd backend && npm run dev"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {}
+}
