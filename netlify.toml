@@ -1,0 +1,17 @@
+# Netlify Configuration - Frontend only
+# Backend must be deployed separately (Railway, Render, Vercel, etc.)
+
+[build]
+base = "frontend"
+command = "npm run build"
+publish = "dist"
+
+[build.environment]
+NODE_ENV = "production"
+
+# Redirect all frontend routes (SPA)
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
