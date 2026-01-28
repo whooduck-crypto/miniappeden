@@ -5,55 +5,48 @@ import { getTelegramUserInfo } from '../config/telegram'
  * Компонент для отображения аватарки пользователя из Telegram
  */
 export function UserAvatar() {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [firstName, setFirstName] = useState<string>('User')
+  const [user, setUser] = useState<any>(null)
+  const [initial, setInitial] = useState<string>('U')
+  const [backgroundColor, setBackgroundColor] = useState<string>('#4ECDC4')
 
   useEffect(() => {
-    const user = getTelegramUserInfo()
+    // Попытка получить user info
+    const telegramUser = getTelegramUserInfo()
     
-    if (user) {
-      // Получить имя пользователя
-      setFirstName(user.first_name || user.username || 'User')
+    console.log('🎨 UserAvatar useEffect:')
+    console.log('   User:', telegramUser)
+    
+    if (telegramUser) {
+      setUser(telegramUser)
       
-      // Telegram предоставляет аватарку через их CDN
-      // Но так как мы не можем получить прямой URL в Mini App,
-      // используем генератор аватарок на основе имени
+      // Получить первую букву имени
+      const name = telegramUser.first_name || telegramUser.username || 'User'
+      const firstLetter = name.charAt(0).toUpperCase()
+      setInitial(firstLetter)
       
-      console.log('👤 User Info:', user)
-      console.log('   - ID:', user.id)
-      console.log('   - First Name:', user.first_name)
-      console.log('   - Username:', user.username)
-      console.log('   - Last Name:', user.last_name)
+      // Выбрать цвет на основе ID
+      const colors = [
+        '#FF6B6B', // Красный
+        '#4ECDC4', // Бирюзовый
+        '#45B7D1', // Голубой
+        '#FFA07A', // Светло-коралловый
+        '#98D8C8', // Мятный
+        '#F7DC6F', // Жёлтый
+        '#BB8FCE', // Лавандовый
+        '#85C1E2', // Нежный голубой
+      ]
+      const color = colors[telegramUser.id % colors.length]
+      setBackgroundColor(color)
+      
+      console.log('   ✅ User loaded:')
+      console.log('   - ID:', telegramUser.id)
+      console.log('   - Name:', name)
+      console.log('   - Initial:', firstLetter)
+      console.log('   - Color:', color)
+    } else {
+      console.log('   ❌ No user found')
     }
   }, [])
-
-  // Генератор случайного цвета на основе ID пользователя
-  const generateAvatarColor = (userId?: number): string => {
-    const colors = [
-      '#FF6B6B', // Красный
-      '#4ECDC4', // Бирюзовый
-      '#45B7D1', // Голубой
-      '#FFA07A', // Светло-коралловый
-      '#98D8C8', // Мятный
-      '#F7DC6F', // Жёлтый
-      '#BB8FCE', // Лавандовый
-      '#85C1E2', // Нежный голубой
-    ]
-    
-    if (userId) {
-      return colors[userId % colors.length]
-    }
-    return colors[Math.floor(Math.random() * colors.length)]
-  }
-
-  // Получить первую букву для аватарки
-  const getInitial = (name: string): string => {
-    return name.charAt(0).toUpperCase()
-  }
-
-  const user = getTelegramUserInfo()
-  const backgroundColor = generateAvatarColor(user?.id)
-  const initial = getInitial(firstName)
 
   return (
     <div
@@ -82,21 +75,37 @@ export function UserAvatar() {
  * Компонент для маленькой аватарки (в навигации, etc)
  */
 export function UserAvatarSmall({ size = 40 }: { size?: number }) {
-  const [firstName, setFirstName] = useState<string>('U')
+  const [initial, setInitial] = useState<string>('U')
+  const [backgroundColor, setBackgroundColor] = useState<string>('#4ECDC4')
+  const [userId, setUserId] = useState<number | null>(null)
 
   useEffect(() => {
     const user = getTelegramUserInfo()
-    if (user?.first_name) {
-      setFirstName(user.first_name.charAt(0).toUpperCase())
+    
+    console.log('🎨 UserAvatarSmall useEffect:')
+    console.log('   User:', user)
+    
+    if (user) {
+      setUserId(user.id)
+      
+      // Получить первую букву имени
+      const name = user.first_name || user.username || 'U'
+      const firstLetter = name.charAt(0).toUpperCase()
+      setInitial(firstLetter)
+      
+      // Выбрать цвет на основе ID
+      const colors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+        '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
+      ]
+      const color = colors[user.id % colors.length]
+      setBackgroundColor(color)
+      
+      console.log('   ✅ User loaded: ID=' + user.id + ', Initial=' + firstLetter)
+    } else {
+      console.log('   ❌ No user found')
     }
   }, [])
-
-  const user = getTelegramUserInfo()
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-    '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
-  ]
-  const backgroundColor = colors[(user?.id || 0) % colors.length]
 
   return (
     <div
@@ -114,7 +123,7 @@ export function UserAvatarSmall({ size = 40 }: { size?: number }) {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
       }}
     >
-      {firstName}
+      {initial}
     </div>
   )
 }
