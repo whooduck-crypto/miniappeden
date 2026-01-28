@@ -5,7 +5,8 @@
   "type": "module",
   "main": "backend/server.js",
   "scripts": {
-    "start": "cd backend && npm install && npm start",
+    "start": "cd backend && npm start",
+    "postinstall": "cd backend && npm install",
     "dev": "cd backend && npm run dev"
   },
   "engines": {
