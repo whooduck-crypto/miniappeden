@@ -1,11 +1,25 @@
 import '../styles/Navigation.css'
 import { getTelegramUserInfo } from '../config/telegram'
 import { isAdmin } from '../config/admin'
+import { useEffect, useState } from 'react'
 
 export function Navigation({ currentPage, onNavigate }: any) {
-  const user = getTelegramUserInfo()
-  const userId = user?.id
-  const isUserAdmin = isAdmin(userId)
+  const [userId, setUserId] = useState<number | null>(null)
+  const [isUserAdmin, setIsUserAdmin] = useState(false)
+
+  useEffect(() => {
+    // Получить информацию о пользователе из Telegram
+    const user = getTelegramUserInfo()
+    const id = user?.id || null
+
+    // Логирование для отладки
+    console.log('🔍 Telegram User Info:', user)
+    console.log('🔍 User ID:', id)
+    console.log('🔍 Is Admin:', isAdmin(id))
+
+    setUserId(id)
+    setIsUserAdmin(isAdmin(id))
+  }, [])
 
   const navItems = [
     { id: 'home', label: 'Главная', emoji: '🏠' },

@@ -137,8 +137,15 @@ export function getTelegramUserId(): number | null {
  * Получить полную информацию пользователя из Telegram WebApp
  */
 export function getTelegramUserInfo() {
-  if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-    return (window as any).Telegram.WebApp.initDataUnsafe?.user || null;
+  if (typeof window !== 'undefined') {
+    const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user || null
+    
+    // Логирование для отладки
+    console.log('📱 Telegram WebApp:', (window as any).Telegram?.WebApp ? 'Доступна' : 'НЕ доступна')
+    console.log('📱 initDataUnsafe:', (window as any).Telegram?.WebApp?.initDataUnsafe ? 'Доступна' : 'НЕ доступна')
+    console.log('👤 User data:', telegramUser)
+    
+    return telegramUser
   }
   return null;
 }

@@ -28,8 +28,20 @@ export const ADMIN_CONFIG = {
  * Проверить, является ли пользователь администратором
  */
 export function isAdmin(userId: number | null | undefined): boolean {
-  if (!userId) return false
-  return ADMIN_CONFIG.ADMIN_IDS.includes(userId)
+  if (!userId) {
+    console.log('❌ isAdmin: userId пусто')
+    return false
+  }
+  
+  const adminIds = ADMIN_CONFIG.ADMIN_IDS
+  const isAdminUser = adminIds.includes(userId)
+  
+  console.log('🔐 Admin Check:')
+  console.log('  - User ID:', userId)
+  console.log('  - Admin IDs:', adminIds)
+  console.log('  - Is Admin:', isAdminUser)
+  
+  return isAdminUser
 }
 
 /**
