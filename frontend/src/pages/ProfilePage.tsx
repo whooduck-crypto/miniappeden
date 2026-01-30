@@ -4,34 +4,120 @@ import { UserAvatar } from '../components/UserAvatar'
 import { getTelegramUserInfo } from '../config/telegram'
 
 export function ProfilePage() {
-  const [telegramUser, setTelegramUser] = useState<any>(null)
+  const telegramUser = getTelegramUserInfo()
+  const userId = telegramUser?.id
 
+  const [userData, setUserData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Загружаем данные пользователя с сервера
   useEffect(() => {
-    const user = getTelegramUserInfo()
-    setTelegramUser(user)
-    console.log('📱 ProfilePage - Telegram User:', user)
-  }, [])
+    const fetchUserData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        if (!userId) {
+          setError('User ID not found')
+          setLoading(false)
+          return
+        }
+
+        // Получаем данные пользователя
+        const response = await fetch(`/api/users/${userId}`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data')
+        }
+
+        const data = await response.json()
+        setUserData(data)
+        console.log('📊 User Data:', data)
+      } catch (err) {
+        console.error('Error fetching user data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load user data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (userId) {
+      fetchUserData()
+    }
+  }, [userId])
+
+  // Периодическое обновление данных (каждые 5 секунд)
+  useEffect(() => {
+    if (!userId) return
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/users/${userId}`)
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data)
+        }
+      } catch (err) {
+        console.error('Error updating user data:', err)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [userId])
+
+  if (loading) {
+    return (
+      <div className="page profile-page">
+        <h1>👤 Профиль</h1>
+        <div style={{ textAlign: 'center', padding: '40px', opacity: 0.7 }}>
+          ⏳ Загрузка профиля...
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !userData) {
+    return (
+      <div className="page profile-page">
+        <h1>👤 Профиль</h1>
+        <div style={{
+          background: 'rgba(255, 107, 107, 0.2)',
+          border: '1px solid #ff6b6b',
+          color: '#ff6b6b',
+          padding: '12px',
+          borderRadius: '8px',
+          marginBottom: '15px',
+        }}>
+          ❌ {error || 'Failed to load profile'}
+        </div>
+      </div>
+    )
+  }
 
   const userStats = {
-    username: telegramUser?.username || telegramUser?.first_name || 'YourPlayer',
-    level: 12,
-    experience: 6234,
+    username: userData?.username || telegramUser?.first_name || 'YourPlayer',
+    level: userData?.level || 1,
+    experience: userData?.experience || 0,
     experienceToNextLevel: 10000,
-    coins: 2540,
-    rating: 2540,
+    coins: userData?.balance || 0,
+    stars: userData?.stars || 0,
+    rating: userData?.balance || 0,
     rank: 10,
-    totalWins: 28,
-    totalLosses: 15,
-    winRate: 65,
+    totalWins: userData?.wins || 0,
+    totalLosses: userData?.losses || 0,
+    winRate: userData?.wins && userData?.losses 
+      ? Math.round((userData.wins / (userData.wins + userData.losses)) * 100)
+      : 0,
   };
 
   const achievements = [
-    { icon: '🥇', name: 'Первая победа', unlocked: true },
-    { icon: '🔟', name: '10 побед', unlocked: true },
-    { icon: '💯', name: '100 побед', unlocked: false },
-    { icon: '💰', name: '1000 монет', unlocked: true },
-    { icon: '⭐', name: 'Все турниры', unlocked: false },
-    { icon: '🏆', name: 'Топ-100', unlocked: true },
+    { icon: '🥇', name: 'Первая победа', unlocked: userStats.totalWins > 0 },
+    { icon: '🔟', name: '10 побед', unlocked: userStats.totalWins >= 10 },
+    { icon: '💯', name: '100 побед', unlocked: userStats.totalWins >= 100 },
+    { icon: '💰', name: '1000 монет', unlocked: userStats.coins >= 1000 },
+    { icon: '⭐', name: 'Все турниры', unlocked: userStats.stars >= 50 },
+    { icon: '🏆', name: 'Топ-100', unlocked: false },
   ];
 
   const recentMatches = [
@@ -74,9 +160,9 @@ export function ProfilePage() {
         </div>
 
         <div className="stat-box">
-          <span className="stat-icon">📈</span>
-          <span className="stat-label">Рейтинг</span>
-          <span className="stat-value">{userStats.rating}</span>
+          <span className="stat-icon">⭐</span>
+          <span className="stat-label">Звезды</span>
+          <span className="stat-value">{userStats.stars}</span>
         </div>
 
         <div className="stat-box">
@@ -98,7 +184,7 @@ export function ProfilePage() {
         </div>
 
         <div className="stat-box">
-          <span className="stat-icon">⭐</span>
+          <span className="stat-icon">📈</span>
           <span className="stat-label">Уровень</span>
           <span className="stat-value">{userStats.level}</span>
         </div>

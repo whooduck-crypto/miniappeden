@@ -324,6 +324,104 @@ app.get('/api/rating/stars-leaderboard', (req, res) => {
   res.json(leaderboard);
 });
 
+/**
+ * Увеличить монеты пользователю (по ID)
+ * POST /api/users/:userId/add-balance
+ * 
+ * Body:
+ * { "amount": 500, "reason": "Tournament prize" }
+ */
+app.post('/api/users/:userId/add-balance', (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { amount, reason } = req.body;
+    const user = users.get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive integer' });
+    }
+
+    user.balance = (user.balance || 0) + amount;
+    user.updatedAt = new Date();
+    users.set(userId, user);
+
+    res.json({
+      success: true,
+      message: `Added ${amount} coins${reason ? ` (${reason})` : ''}`,
+      newBalance: user.balance,
+    });
+  } catch (err) {
+    console.error('Error adding balance:', err);
+    res.status(500).json({ error: 'Failed to add balance' });
+  }
+});
+
+/**
+ * Уменьшить монеты пользователя (по ID)
+ * POST /api/users/:userId/deduct-balance
+ * 
+ * Body:
+ * { "amount": 100, "reason": "Tournament entry" }
+ */
+app.post('/api/users/:userId/deduct-balance', (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { amount, reason } = req.body;
+    const user = users.get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive integer' });
+    }
+
+    if (user.balance < amount) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    user.balance -= amount;
+    user.updatedAt = new Date();
+    users.set(userId, user);
+
+    res.json({
+      success: true,
+      message: `Deducted ${amount} coins${reason ? ` (${reason})` : ''}`,
+      newBalance: user.balance,
+    });
+  } catch (err) {
+    console.error('Error deducting balance:', err);
+    res.status(500).json({ error: 'Failed to deduct balance' });
+  }
+});
+
+/**
+ * Получить лидерборд по монетам
+ * GET /api/rating/coins-leaderboard?limit=10
+ */
+app.get('/api/rating/coins-leaderboard', (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 100);
+    const leaderboard = Array.from(users.values())
+      .sort((a, b) => (b.balance || 0) - (a.balance || 0))
+      .slice(0, limit)
+      .map((user, index) => ({
+        ...user,
+        position: index + 1,
+      }));
+
+    res.json(leaderboard);
+  } catch (err) {
+    console.error('Error getting coins leaderboard:', err);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
+});
+
 // ===== ROUTES: SHOP =====
 app.get('/api/shop/items', (req, res) => {
   res.json(shopItems);
