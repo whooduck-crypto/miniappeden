@@ -8,7 +8,7 @@
 const isDev = !import.meta.env.PROD;
 const API_URL = isDev 
   ? 'http://localhost:3000/api'
-  : (import.meta.env.VITE_API_URL || 'https://miniappeden.netlify.app/api');
+  : (import.meta.env.VITE_API_URL || 'https://miniappeden-production.up.railway.app');
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 interface RequestOptions {
