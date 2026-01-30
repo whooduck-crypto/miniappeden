@@ -1,0 +1,33 @@
+{
+  "name": "miniapp-backend",
+  "version": "1.0.0",
+  "description": "Telegram Mini App Backend - Express Server",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "backend",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.63.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

@@ -1,4 +1,4 @@
-# Logs
+# ===== LOGS =====
 logs
 *.log
 npm-debug.log*
@@ -7,21 +7,52 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# ===== NODE & DEPENDENCIES =====
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ===== BUILD & DIST =====
+dist/
+dist-ssr/
+build/
 *.local
 
-# Data files (tournaments, users, etc)
+# ===== DATA & PERSISTENCE =====
 data/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
 
-# Editor directories and files
+# ===== ENVIRONMENT VARIABLES =====
+.env
+.env.local
+.env.*.local
+
+# ===== EDITOR & IDE =====
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.iml
+
+# ===== OS FILES =====
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ===== MISC =====
+.cache/
+.parcel-cache/
+dist/
+coverage/
