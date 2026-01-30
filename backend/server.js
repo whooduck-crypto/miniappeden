@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
   origin: [
-    'https://ВАШ-VERCEL-ПРИЛОЖЕНИЕ.vercel.app',
+    'https://miniappeden.vercel.app/',
     'http://localhost:3000',
     'http://localhost:5173'
   ],
