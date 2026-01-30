@@ -97,6 +97,7 @@ app.post('/api/users', (req, res) => {
     username,
     firstName,
     balance: 1000, // Начальный баланс
+    stars: 0, // Добавляем поле звезд
     level: 1,
     experience: 0,
     wins: 0,
@@ -129,6 +130,184 @@ app.put('/api/users/:userId', (req, res) => {
   const updated = { ...user, ...req.body };
   users.set(userId, updated);
   res.json(updated);
+});
+
+// ===== ROUTES: STARS (Выдача звезд) =====
+
+/**
+ * Выдача звезд пользователям по юзернейму
+ * POST /api/admin/distribute-stars
+ * 
+ * Body:
+ * {
+ *   "users": [
+ *     { "username": "user1", "stars": 100 },
+ *     { "username": "user2", "stars": 50 }
+ *   ]
+ * }
+ */
+app.post('/api/admin/distribute-stars', (req, res) => {
+  try {
+    const { users: usersToUpdate } = req.body;
+
+    // Валидация
+    if (!usersToUpdate || !Array.isArray(usersToUpdate) || usersToUpdate.length === 0) {
+      return res.status(400).json({
+        message: 'Передайте массив пользователей',
+      });
+    }
+
+    // Проверяем каждого пользователя
+    const validationErrors = [];
+    for (let i = 0; i < usersToUpdate.length; i++) {
+      const { username, stars } = usersToUpdate[i];
+
+      if (!username || !username.trim()) {
+        validationErrors.push(`Строка ${i + 1}: username не указан`);
+      }
+
+      if (!Number.isInteger(stars) || stars <= 0) {
+        validationErrors.push(`Строка ${i + 1}: количество звезд должно быть числом > 0`);
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        message: validationErrors.join('; '),
+      });
+    }
+
+    // Обновляем звезды каждому пользователю
+    const results = [];
+    let totalDistributed = 0;
+
+    for (const { username, stars } of usersToUpdate) {
+      try {
+        // Ищем пользователя по username
+        let foundUser = null;
+        let foundUserId = null;
+
+        // Ищем в Map users по username
+        for (const [userId, user] of users.entries()) {
+          if (user.username === username || user.username === `@${username}`) {
+            foundUser = user;
+            foundUserId = userId;
+            break;
+          }
+        }
+
+        if (!foundUser) {
+          results.push({
+            username,
+            success: false,
+            error: 'Пользователь не найден',
+          });
+          continue;
+        }
+
+        // Обновляем баланс звезд
+        foundUser.stars = (foundUser.stars || 0) + stars;
+        foundUser.updatedAt = new Date();
+        users.set(foundUserId, foundUser);
+
+        results.push({
+          username,
+          success: true,
+          stars: foundUser.stars,
+        });
+
+        totalDistributed += stars;
+      } catch (error) {
+        results.push({
+          username,
+          success: false,
+          error: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        });
+      }
+    }
+
+    // Подсчитываем успешные операции
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    res.json({
+      message: `Успешно обновлено: ${successCount} пользователей, ошибок: ${failCount}`,
+      totalDistributed,
+      results,
+    });
+  } catch (error) {
+    console.error('Ошибка при выдаче звезд:', error);
+    res.status(500).json({
+      message: 'Внутренняя ошибка сервера',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Получить звезды пользователя
+ * GET /api/users/:userId/stars
+ */
+app.get('/api/users/:userId/stars', (req, res) => {
+  const user = users.get(parseInt(req.params.userId));
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  res.json({
+    userId: user.telegramId,
+    username: user.username,
+    stars: user.stars || 0,
+  });
+});
+
+/**
+ * Добавить звезды пользователю (по ID)
+ * POST /api/users/:userId/add-stars
+ * 
+ * Body:
+ * { "stars": 50, "reason": "Achievement unlocked" }
+ */
+app.post('/api/users/:userId/add-stars', (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const { stars, reason } = req.body;
+  const user = users.get(userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  if (!Number.isInteger(stars) || stars <= 0) {
+    return res.status(400).json({ error: 'Stars must be a positive integer' });
+  }
+
+  user.stars = (user.stars || 0) + stars;
+  user.updatedAt = new Date();
+  users.set(userId, user);
+
+  res.json({
+    success: true,
+    message: `Added ${stars} stars${reason ? ` (${reason})` : ''}`,
+    newStars: user.stars,
+  });
+});
+
+/**
+ * Получить топ пользователей по звездам
+ * GET /api/rating/stars-leaderboard?limit=10
+ */
+app.get('/api/rating/stars-leaderboard', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 100);
+  const leaderboard = Array.from(users.values())
+    .sort((a, b) => (b.stars || 0) - (a.stars || 0))
+    .slice(0, limit)
+    .map((user, index) => ({
+      ...user,
+      position: index + 1,
+    }));
+
+  res.json(leaderboard);
 });
 
 // ===== ROUTES: SHOP =====
@@ -472,6 +651,7 @@ bot.onText(/\/start/, (msg) => {
       username,
       firstName: msg.from.first_name,
       balance: 1000,
+      stars: 0,
       level: 1,
       experience: 0,
       wins: 0,
@@ -482,7 +662,8 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, 
     `🎮 Добро пожаловать в Gaming Arena!\n\n` +
     `👤 Профиль: ${username}\n` +
-    `💰 Баланс: 1000 монет\n\n` +
+    `💰 Баланс: 1000 монет\n` +
+    `⭐ Звезды: 0\n\n` +
     `Открыть приложение: ${process.env.MINI_APP_URL}`
   );
 });
@@ -502,5 +683,7 @@ app.listen(PORT, () => {
   console.log(`   POST   /api/shop/purchase`);
   console.log(`   GET    /api/rating/leaderboard`);
   console.log(`   GET    /api/tournaments`);
+  console.log(`   POST   /api/admin/distribute-stars`);
+  console.log(`   GET    /api/rating/stars-leaderboard`);
   console.log(`   GET    /health\n`);
 });
