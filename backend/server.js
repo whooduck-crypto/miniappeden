@@ -60,11 +60,25 @@ function loadTournaments() {
   try {
     if (fs.existsSync(TOURNAMENTS_FILE)) {
       const data = fs.readFileSync(TOURNAMENTS_FILE, 'utf-8');
+      
+      // Проверяем, что файл не пустой
+      if (!data || data.trim() === '') {
+        console.log('Tournaments file is empty, returning empty map');
+        return new Map();
+      }
+
       const tournamentsData = JSON.parse(data);
+      
+      // Проверяем, что это массив
+      if (!Array.isArray(tournamentsData)) {
+        console.log('Tournaments data is not an array, returning empty map');
+        return new Map();
+      }
+
       return new Map(tournamentsData.map(t => [t.id, t]));
     }
   } catch (err) {
-    console.error('Error loading tournaments:', err);
+    console.error('Error loading tournaments:', err.message);
   }
   return new Map();
 }
@@ -399,205 +413,250 @@ app.post('/api/rating/add-points', (req, res) => {
 
 // ===== ROUTES: TOURNAMENTS =====
 app.get('/api/tournaments', (req, res) => {
-  const status = req.query.status;
-  const allTournaments = Array.from(tournaments.values());
-  
-  if (status) {
-    return res.json(allTournaments.filter(t => t.status === status));
+  try {
+    const status = req.query.status;
+    const allTournaments = Array.from(tournaments.values());
+    
+    if (status) {
+      return res.json(allTournaments.filter(t => t.status === status));
+    }
+    
+    res.json(allTournaments);
+  } catch (err) {
+    console.error('Error getting tournaments:', err);
+    res.status(500).json({ error: 'Failed to get tournaments' });
   }
-  
-  res.json(allTournaments);
 });
 
 app.get('/api/tournaments/:tournamentId', (req, res) => {
-  const tournament = tournaments.get(parseInt(req.params.tournamentId));
-  
-  if (!tournament) {
-    return res.status(404).json({ error: 'Tournament not found' });
-  }
+  try {
+    const tournament = tournaments.get(parseInt(req.params.tournamentId));
+    
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
 
-  res.json(tournament);
+    res.json(tournament);
+  } catch (err) {
+    console.error('Error getting tournament:', err);
+    res.status(500).json({ error: 'Failed to get tournament' });
+  }
 });
 
 app.post('/api/tournaments', (req, res) => {
-  const { name, description, startDate, endDate, maxParticipants, entryFee, prizePool, createdBy } = req.body;
-  
-  if (!name || !createdBy) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    const { name, description, startDate, endDate, maxParticipants, entryFee, prizePool, createdBy } = req.body;
+    
+    if (!name || !createdBy) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const id = tournamentIdCounter++;
+    const newTournament = {
+      id,
+      name,
+      description: description || '',
+      startDate,
+      endDate,
+      maxParticipants,
+      currentParticipants: 0,
+      entryFee: entryFee || 0,
+      prizePool: prizePool || 0,
+      status: 'pending',
+      createdBy,
+      createdAt: new Date().toISOString(),
+      participants: [],
+    };
+
+    tournaments.set(id, newTournament);
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    res.json(newTournament);
+  } catch (err) {
+    console.error('Error creating tournament:', err);
+    res.status(500).json({ error: 'Failed to create tournament' });
   }
-
-  const id = tournamentIdCounter++;
-  const newTournament = {
-    id,
-    name,
-    description: description || '',
-    startDate,
-    endDate,
-    maxParticipants,
-    currentParticipants: 0,
-    entryFee: entryFee || 0,
-    prizePool: prizePool || 0,
-    status: 'pending',
-    createdBy,
-    createdAt: new Date().toISOString(),
-    participants: [],
-  };
-
-  tournaments.set(id, newTournament);
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
-  res.json(newTournament);
 });
 
 app.put('/api/tournaments/:tournamentId', (req, res) => {
-  const tournament = tournaments.get(parseInt(req.params.tournamentId));
-  
-  if (!tournament) {
-    return res.status(404).json({ error: 'Tournament not found' });
-  }
+  try {
+    const tournament = tournaments.get(parseInt(req.params.tournamentId));
+    
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
 
-  const updated = { ...tournament, ...req.body };
-  tournaments.set(tournament.id, updated);
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
-  res.json(updated);
+    const updated = { ...tournament, ...req.body };
+    tournaments.set(tournament.id, updated);
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating tournament:', err);
+    res.status(500).json({ error: 'Failed to update tournament' });
+  }
 });
 
 app.delete('/api/tournaments/:tournamentId', (req, res) => {
-  const id = parseInt(req.params.tournamentId);
-  
-  if (!tournaments.has(id)) {
-    return res.status(404).json({ error: 'Tournament not found' });
-  }
+  try {
+    const id = parseInt(req.params.tournamentId);
+    
+    if (!tournaments.has(id)) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
 
-  tournaments.delete(id);
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
-  res.json({ success: true, message: 'Tournament deleted' });
+    tournaments.delete(id);
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    res.json({ success: true, message: 'Tournament deleted' });
+  } catch (err) {
+    console.error('Error deleting tournament:', err);
+    res.status(500).json({ error: 'Failed to delete tournament' });
+  }
 });
 
 app.post('/api/tournaments/join', (req, res) => {
-  const { userId, tournamentId } = req.body;
-  const tournament = tournaments.get(tournamentId);
-  const user = users.get(userId);
-  
-  if (!tournament || !user) {
-    return res.status(404).json({ error: 'Tournament or user not found' });
+  try {
+    const { userId, tournamentId } = req.body;
+    const tournament = tournaments.get(tournamentId);
+    const user = users.get(userId);
+    
+    if (!tournament || !user) {
+      return res.status(404).json({ error: 'Tournament or user not found' });
+    }
+
+    if (tournament.currentParticipants >= tournament.maxParticipants) {
+      return res.status(400).json({ error: 'Tournament is full' });
+    }
+
+    if (user.balance < tournament.entryFee) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    // Проверить, не участвует ли уже
+    if (tournament.participants.find(p => p.userId === userId)) {
+      return res.status(400).json({ error: 'Already joined' });
+    }
+
+    // Добавить участника
+    tournament.participants.push({
+      userId,
+      username: user.username,
+      joinedAt: new Date().toISOString(),
+      score: 0,
+    });
+
+    tournament.currentParticipants += 1;
+    user.balance -= tournament.entryFee;
+
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+
+    res.json({
+      success: true,
+      message: 'Joined tournament',
+      tournament,
+    });
+  } catch (err) {
+    console.error('Error joining tournament:', err);
+    res.status(500).json({ error: 'Failed to join tournament' });
   }
-
-  if (tournament.currentParticipants >= tournament.maxParticipants) {
-    return res.status(400).json({ error: 'Tournament is full' });
-  }
-
-  if (user.balance < tournament.entryFee) {
-    return res.status(400).json({ error: 'Insufficient balance' });
-  }
-
-  // Проверить, не участвует ли уже
-  if (tournament.participants.find(p => p.userId === userId)) {
-    return res.status(400).json({ error: 'Already joined' });
-  }
-
-  // Добавить участника
-  tournament.participants.push({
-    userId,
-    username: user.username,
-    joinedAt: new Date().toISOString(),
-    score: 0,
-  });
-
-  tournament.currentParticipants += 1;
-  user.balance -= tournament.entryFee;
-
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
-
-  res.json({
-    success: true,
-    message: 'Joined tournament',
-    tournament,
-  });
 });
 
 app.post('/api/tournaments/leave', (req, res) => {
-  const { userId, tournamentId } = req.body;
-  const tournament = tournaments.get(tournamentId);
-  const user = users.get(userId);
-  
-  if (!tournament || !user) {
-    return res.status(404).json({ error: 'Tournament or user not found' });
+  try {
+    const { userId, tournamentId } = req.body;
+    const tournament = tournaments.get(tournamentId);
+    const user = users.get(userId);
+    
+    if (!tournament || !user) {
+      return res.status(404).json({ error: 'Tournament or user not found' });
+    }
+
+    const index = tournament.participants.findIndex(p => p.userId === userId);
+    if (index === -1) {
+      return res.status(400).json({ error: 'Not a participant' });
+    }
+
+    tournament.participants.splice(index, 1);
+    tournament.currentParticipants -= 1;
+
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+
+    res.json({
+      success: true,
+      message: 'Left tournament',
+    });
+  } catch (err) {
+    console.error('Error leaving tournament:', err);
+    res.status(500).json({ error: 'Failed to leave tournament' });
   }
-
-  const index = tournament.participants.findIndex(p => p.userId === userId);
-  if (index === -1) {
-    return res.status(400).json({ error: 'Not a participant' });
-  }
-
-  tournament.participants.splice(index, 1);
-  tournament.currentParticipants -= 1;
-
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
-
-  res.json({
-    success: true,
-    message: 'Left tournament',
-  });
 });
 
 app.post('/api/tournaments/:tournamentId/finish', (req, res) => {
-  const tournament = tournaments.get(parseInt(req.params.tournamentId));
-  
-  if (!tournament) {
-    return res.status(404).json({ error: 'Tournament not found' });
-  }
-
-  if (tournament.status === 'finished') {
-    return res.status(400).json({ error: 'Tournament already finished' });
-  }
-
-  tournament.status = 'finished';
-
-  // Распределить призы (пример: 50% первому, 30% второму, 20% третьему)
-  const sorted = [...tournament.participants].sort((a, b) => b.score - a.score);
-  
-  const prizes = [
-    { position: 1, percentage: 0.5 },
-    { position: 2, percentage: 0.3 },
-    { position: 3, percentage: 0.2 },
-  ];
-
-  sorted.forEach((participant, index) => {
-    const prize = prizes.find(p => p.position === index + 1);
-    if (prize) {
-      const prizeAmount = Math.floor(tournament.prizePool * prize.percentage);
-      const user = users.get(participant.userId);
-      if (user) {
-        user.balance += prizeAmount;
-      }
+  try {
+    const tournament = tournaments.get(parseInt(req.params.tournamentId));
+    
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
     }
-  });
 
-  saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    if (tournament.status === 'finished') {
+      return res.status(400).json({ error: 'Tournament already finished' });
+    }
 
-  res.json({
-    success: true,
-    message: 'Tournament finished and prizes distributed',
-    tournament,
-  });
+    tournament.status = 'finished';
+
+    // Распределить призы (пример: 50% первому, 30% второму, 20% третьему)
+    const sorted = [...tournament.participants].sort((a, b) => b.score - a.score);
+    
+    const prizes = [
+      { position: 1, percentage: 0.5 },
+      { position: 2, percentage: 0.3 },
+      { position: 3, percentage: 0.2 },
+    ];
+
+    sorted.forEach((participant, index) => {
+      const prize = prizes.find(p => p.position === index + 1);
+      if (prize) {
+        const prizeAmount = Math.floor(tournament.prizePool * prize.percentage);
+        const user = users.get(participant.userId);
+        if (user) {
+          user.balance += prizeAmount;
+        }
+      }
+    });
+
+    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+
+    res.json({
+      success: true,
+      message: 'Tournament finished and prizes distributed',
+      tournament,
+    });
+  } catch (err) {
+    console.error('Error finishing tournament:', err);
+    res.status(500).json({ error: 'Failed to finish tournament' });
+  }
 });
 
 app.get('/api/tournaments/:tournamentId/results', (req, res) => {
-  const tournament = tournaments.get(parseInt(req.params.tournamentId));
-  
-  if (!tournament) {
-    return res.status(404).json({ error: 'Tournament not found' });
+  try {
+    const tournament = tournaments.get(parseInt(req.params.tournamentId));
+    
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const results = tournament.participants
+      .sort((a, b) => b.score - a.score)
+      .map((p, index) => ({
+        ...p,
+        position: index + 1,
+        prize: calculatePrize(tournament.prizePool, index),
+      }));
+
+    res.json(results);
+  } catch (err) {
+    console.error('Error getting tournament results:', err);
+    res.status(500).json({ error: 'Failed to get tournament results' });
   }
-
-  const results = tournament.participants
-    .sort((a, b) => b.score - a.score)
-    .map((p, index) => ({
-      ...p,
-      position: index + 1,
-      prize: calculatePrize(tournament.prizePool, index),
-    }));
-
-  res.json(results);
 });
 
 function calculatePrize(prizePool, position) {
@@ -609,12 +668,17 @@ function calculatePrize(prizePool, position) {
 }
 
 app.get('/api/users/:userId/tournaments', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const userTournaments = Array.from(tournaments.values()).filter(t =>
-    t.participants.some(p => p.userId === userId)
-  );
+  try {
+    const userId = parseInt(req.params.userId);
+    const userTournaments = Array.from(tournaments.values()).filter(t =>
+      t.participants.some(p => p.userId === userId)
+    );
 
-  res.json(userTournaments);
+    res.json(userTournaments);
+  } catch (err) {
+    console.error('Error getting user tournaments:', err);
+    res.status(500).json({ error: 'Failed to get user tournaments' });
+  }
 });
 
 // ===== ROUTES: ACHIEVEMENTS =====
