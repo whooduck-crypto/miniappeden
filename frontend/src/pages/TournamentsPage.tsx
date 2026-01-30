@@ -1,5 +1,5 @@
 import '../App.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 
@@ -10,21 +10,29 @@ export function TournamentsPage() {
   const { tournaments, loading, error, fetchTournaments, joinTournament } = useTournamentManagement()
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
   const [joining, setJoining] = useState<number | null>(null)
+  const previousTournamentsRef = useRef<typeof tournaments>(null)
 
   // Загружаем турниры при монтировании
   useEffect(() => {
     fetchTournaments()
-  }, [fetchTournaments])
+  }, [])
 
-  // Периодически обновляем список турниров (каждые 5 секунд)
-  // Это обеспечивает синхронизацию при создании новых турниров в админке
+  // Периодически обновляем список турниров (каждые 30 секунд)
+  // Увеличенный интервал предотвращает частые перезагрузки
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTournaments()
-    }, 5000)
+    }, 30000) // Изменено с 5000 на 30000 миллисекунд
 
     return () => clearInterval(interval)
-  }, [fetchTournaments])
+  }, [])
+
+  // Сравниваем турниры и предотвращаем лишние перерисовки
+  useEffect(() => {
+    if (JSON.stringify(previousTournamentsRef.current) !== JSON.stringify(tournaments)) {
+      previousTournamentsRef.current = tournaments
+    }
+  }, [tournaments])
 
   const filtered = tournaments.filter(t => {
     if (filter === 'active') return t.status === 'active'
@@ -42,6 +50,8 @@ export function TournamentsPage() {
     try {
       await joinTournament(userId, tournamentId)
       alert('✅ Вы успешно присоединились к турниру!')
+      // Перезагружаем турниры после присоединения
+      await fetchTournaments()
     } catch (err) {
       alert(`❌ Ошибка: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
