@@ -6,6 +6,7 @@ import { getTelegramUserInfo } from '../config/telegram'
 export function ProfilePage() {
   const telegramUser = getTelegramUserInfo()
   const userId = telegramUser?.id
+  const username = telegramUser?.username || telegramUser?.first_name || 'User'
 
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -24,11 +25,37 @@ export function ProfilePage() {
           return
         }
 
-        // Получаем данные пользователя
-        const response = await fetch(`/api/users/${userId}`)
+        console.log('📱 ProfilePage - Telegram User:', telegramUser)
+        console.log('🔄 Fetching user data for ID:', userId)
+
+        // Сначала пытаемся получить пользователя
+        let response = await fetch(`/api/users/${userId}`)
         
+        // Если пользователь не найден (404), создаем его
+        if (response.status === 404) {
+          console.log('👤 User not found, creating new user...')
+          
+          const createResponse = await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              telegramId: userId,
+              username: username,
+              firstName: telegramUser?.first_name || 'User',
+            }),
+          })
+
+          if (!createResponse.ok) {
+            throw new Error('Failed to create user')
+          }
+
+          response = createResponse
+        }
+
         if (!response.ok) {
-          throw new Error('Failed to fetch user data')
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
 
         const data = await response.json()
@@ -45,7 +72,7 @@ export function ProfilePage() {
     if (userId) {
       fetchUserData()
     }
-  }, [userId])
+  }, [userId, telegramUser])
 
   // Периодическое обновление данных (каждые 5 секунд)
   useEffect(() => {
@@ -90,6 +117,23 @@ export function ProfilePage() {
           marginBottom: '15px',
         }}>
           ❌ {error || 'Failed to load profile'}
+        </div>
+        <div style={{
+          background: 'rgba(0, 212, 255, 0.05)',
+          border: '1px solid #00d4ff',
+          borderRadius: '8px',
+          padding: '15px',
+          marginTop: '15px',
+          fontSize: '13px',
+          lineHeight: '1.6',
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#00d4ff' }}>⚠️ Помощь</div>
+          <div>
+            • Убедитесь, что сервер запущен (http://localhost:3000)<br/>
+            • Проверьте консоль браузера (F12) для подробной информации<br/>
+            • Перезагрузите страницу (F5)<br/>
+            {userId && `• Ваш ID: ${userId}`}
+          </div>
         </div>
       </div>
     )
