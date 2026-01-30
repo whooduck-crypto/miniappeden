@@ -8,12 +8,10 @@
     "npm": "10.x"
   },
   "scripts": {
-    "start": "node backend/server.js",
     "frontend:install": "cd frontend && npm install",
     "frontend:build": "cd frontend && npm run build",
     "frontend:dev": "cd frontend && npm run dev",
     "backend:install": "cd backend && npm install",
-    "backend:start": "cd backend && npm start",
     "backend:dev": "cd backend && npm run dev"
   }
 }
