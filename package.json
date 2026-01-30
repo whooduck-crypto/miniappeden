@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Telegram Mini App",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "scripts": {
     "start": "node backend/server.js",
     "frontend:install": "cd frontend && npm install",
