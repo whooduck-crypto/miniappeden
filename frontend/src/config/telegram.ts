@@ -169,6 +169,17 @@ export function getTelegramUserInfo() {
     console.log('👤 User ID:', telegramUser?.id || 'не найден')
     console.log('👤 User data:', telegramUser)
     
+    // MOCK USER FOR DEBUGGING
+    if (!telegramUser) {
+      console.log('⚠️ Using MOCK user for debugging')
+      return {
+        id: 123456789,
+        first_name: 'Debug User',
+        username: 'debug_user',
+        language_code: 'en'
+      }
+    }
+
     return telegramUser
   }
   return null;
