@@ -48,7 +48,9 @@ export function ProfilePage() {
           })
 
           if (!createResponse.ok) {
-            throw new Error('Failed to create user')
+            const errorText = await createResponse.text()
+            console.error('Create user failed:', createResponse.status, errorText)
+            throw new Error(`Failed to create user: ${createResponse.status} ${errorText}`)
           }
 
           response = createResponse
