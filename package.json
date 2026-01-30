@@ -4,7 +4,7 @@
   "description": "Telegram Mini App",
   "private": true,
   "scripts": {
-    "start": "cd backend && npm start",
+    "start": "node backend/server.js",
     "frontend:install": "cd frontend && npm install",
     "frontend:build": "cd frontend && npm run build",
     "frontend:dev": "cd frontend && npm run dev",
