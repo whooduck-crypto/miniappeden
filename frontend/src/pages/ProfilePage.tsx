@@ -49,9 +49,16 @@ export function ProfilePage() {
         }
 
         setUserData(userData)
-        setGameId(userData?.gameId || '')
-        setServerId(userData?.serverId || '')
+        
+        // Загружаем сохраненные gameId и serverId из localStorage
+        const savedGameId = localStorage.getItem(`gameId_${userId}`)
+        const savedServerId = localStorage.getItem(`serverId_${userId}`)
+        
+        setGameId(savedGameId || userData?.gameId || '')
+        setServerId(savedServerId || userData?.serverId || '')
+        
         console.log('📊 User Data:', userData)
+        console.log('📦 Loaded from localStorage - gameId:', savedGameId, 'serverId:', savedServerId)
       } catch (err) {
         console.error('Error fetching user data:', err)
         setError(err instanceof Error ? err.message : 'Failed to load user data')
@@ -285,10 +292,17 @@ export function ProfilePage() {
               onClick={async () => {
                 try {
                   setIsSaving(true);
+                  
+                  // Сохраняем в localStorage
+                  localStorage.setItem(`gameId_${userId}`, gameId);
+                  localStorage.setItem(`serverId_${userId}`, serverId);
+                  console.log('💾 Данные сохранены в localStorage');
+                  
+                  // Отправляем на сервер
                   await userAPI.updateProfile(userId, { gameId, serverId });
                   setUserData({ ...userData, gameId, serverId });
                   setIsEditing(false);
-                  console.log('✅ Данные сохранены');
+                  console.log('✅ Данные сохранены на сервере');
                 } catch (err) {
                   console.error('❌ Ошибка при сохранении:', err);
                 } finally {
