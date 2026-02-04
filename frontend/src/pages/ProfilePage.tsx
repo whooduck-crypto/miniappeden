@@ -12,6 +12,10 @@ export function ProfilePage() {
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gameId, setGameId] = useState<string>('')
+  const [serverId, setServerId] = useState<string>('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Загружаем данные пользователя с сервера
   useEffect(() => {
@@ -45,6 +49,8 @@ export function ProfilePage() {
         }
 
         setUserData(userData)
+        setGameId(userData?.gameId || '')
+        setServerId(userData?.serverId || '')
         console.log('📊 User Data:', userData)
       } catch (err) {
         console.error('Error fetching user data:', err)
@@ -201,6 +207,125 @@ export function ProfilePage() {
         <p className="experience-text">
           {userStats.experience} / {userStats.experienceToNextLevel} EXP
         </p>
+      </div>
+
+      {/* Форма для Game ID и Server ID */}
+      <div style={{
+        background: 'rgba(0, 212, 255, 0.05)',
+        border: '1px solid #00d4ff',
+        borderRadius: '8px',
+        padding: '15px',
+        marginBottom: '20px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ margin: 0 }}>🎮 Игровые данные</h3>
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            style={{
+              background: isEditing ? '#ff6b6b' : '#00d4ff',
+              color: 'white',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              transition: 'all 0.3s'
+            }}
+          >
+            {isEditing ? '❌ Отмена' : '✏️ Редактировать'}
+          </button>
+        </div>
+
+        {isEditing ? (
+          <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: '#00d4ff' }}>
+                Game ID
+              </label>
+              <input
+                type="text"
+                value={gameId}
+                onChange={(e) => setGameId(e.target.value)}
+                placeholder="Введите Game ID"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #00d4ff',
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  color: 'white',
+                  boxSizing: 'border-box',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: '#00d4ff' }}>
+                Server ID
+              </label>
+              <input
+                type="text"
+                value={serverId}
+                onChange={(e) => setServerId(e.target.value)}
+                placeholder="Введите Server ID"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #00d4ff',
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  color: 'white',
+                  boxSizing: 'border-box',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  setIsSaving(true);
+                  await userAPI.updateProfile(userId, { gameId, serverId });
+                  setUserData({ ...userData, gameId, serverId });
+                  setIsEditing(false);
+                  console.log('✅ Данные сохранены');
+                } catch (err) {
+                  console.error('❌ Ошибка при сохранении:', err);
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              disabled={isSaving}
+              style={{
+                background: '#00d4ff',
+                color: 'black',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                opacity: isSaving ? 0.7 : 1,
+              }}
+            >
+              {isSaving ? '⏳ Сохранение...' : '💾 Сохранить'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ padding: '10px', background: 'rgba(0, 212, 255, 0.05)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '12px', color: '#00d4ff', marginBottom: '4px' }}>Game ID</div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'white' }}>
+                {gameId || '—'}
+              </div>
+            </div>
+            <div style={{ padding: '10px', background: 'rgba(0, 212, 255, 0.05)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '12px', color: '#00d4ff', marginBottom: '4px' }}>Server ID</div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'white' }}>
+                {serverId || '—'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="stats-grid">

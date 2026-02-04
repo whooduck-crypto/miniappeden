@@ -91,6 +91,8 @@ function getMockDataForEndpoint(endpoint: string, options: RequestOptions): any 
       rating: 1850,
       avatar: 'https://via.placeholder.com/160?text=Dev+User',
       photo_url: 'https://via.placeholder.com/160?text=Dev+User',
+      gameId: '',
+      serverId: '',
       createdAt: new Date().toISOString(),
     };
   }
