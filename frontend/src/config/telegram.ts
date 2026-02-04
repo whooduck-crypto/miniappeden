@@ -130,7 +130,21 @@ export function getTelegramUserId(): number | null {
   if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
     return (window as any).Telegram.WebApp.initDataUnsafe?.user?.id || null;
   }
-  return null;
+  // Fallback для браузера (режим разработки)
+  return getMockUserId();
+}
+
+/**
+ * Получить mock пользователя для разработки
+ */
+export function getMockUserId(): number {
+  // Сохранить ID в sessionStorage чтобы он был консистентным
+  const stored = sessionStorage.getItem('debug_user_id');
+  if (stored) return parseInt(stored);
+  
+  const mockId = 123456789;
+  sessionStorage.setItem('debug_user_id', mockId.toString());
+  return mockId;
 }
 
 /**
@@ -152,6 +166,9 @@ export function initTelegramWebApp() {
     console.log('✅ Telegram WebApp инициализирован')
     return webApp
   }
+  
+  // Fallback для разработки в браузере
+  console.log('ℹ️ Telegram WebApp не доступен. Работаем в режиме разработки (браузер)')
   return null
 }
 
@@ -169,18 +186,29 @@ export function getTelegramUserInfo() {
     console.log('👤 User ID:', telegramUser?.id || 'не найден')
     console.log('👤 User data:', telegramUser)
     
-    // MOCK USER FOR DEBUGGING
-    if (!telegramUser) {
-      console.log('⚠️ Using MOCK user for debugging')
-      return {
-        id: 123456789,
-        first_name: 'Debug User',
-        username: 'debug_user',
-        language_code: 'en'
-      }
+    // Если есть данные Telegram - используем их
+    if (telegramUser) {
+      return telegramUser
     }
 
-    return telegramUser
+    // MOCK USER FOR BROWSER (без Telegram Mini App)
+    console.log('⚠️ 🌐 Телеграм не доступен. Используем Mock пользователя для разработки в браузере')
+    return getMockUserInfo()
   }
   return null;
+}
+
+/**
+ * Получить mock пользователя для разработки в браузере
+ */
+export function getMockUserInfo() {
+  const userId = getMockUserId();
+  return {
+    id: userId,
+    first_name: 'Dev User',
+    username: 'dev_user',
+    language_code: 'en',
+    is_bot: false,
+    is_premium: false
+  };
 }
