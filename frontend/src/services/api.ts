@@ -37,12 +37,16 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
     ...options.headers,
   };
 
+  console.log(`📤 API Request: ${options.method || 'GET'} ${url}`);
+
   try {
     const response = await fetch(url, {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
+
+    console.log(`📥 API Response: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const text = await response.text();

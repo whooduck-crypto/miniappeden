@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import '../App.css'
 import { UserAvatar } from '../components/UserAvatar'
 import { getTelegramUserInfo } from '../config/telegram'
+import { userAPI } from '../services/api'
 
 export function ProfilePage() {
   const telegramUser = getTelegramUserInfo()
@@ -28,41 +29,23 @@ export function ProfilePage() {
         console.log('📱 ProfilePage - Telegram User:', telegramUser)
         console.log('🔄 Fetching user data for ID:', userId)
 
-        // Сначала пытаемся получить пользователя
-        let response = await fetch(`/api/users/${userId}`)
-        
-        // Если пользователь не найден (404), создаем его
-        if (response.status === 404) {
+        // Пытаемся получить пользователя
+        let userData: any = null
+        try {
+          userData = await userAPI.getProfile(userId)
+        } catch (err) {
+          // Если пользователь не найден (404), создаем его
           console.log('👤 User not found, creating new user...')
           
-          const createResponse = await fetch('/api/users', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              telegramId: userId,
-              username: username,
-              firstName: telegramUser?.first_name || 'User',
-            }),
+          userData = await userAPI.createUser({
+            telegramId: userId,
+            username: username,
+            firstName: telegramUser?.first_name || 'User',
           })
-
-          if (!createResponse.ok) {
-            const errorText = await createResponse.text()
-            console.error('Create user failed:', createResponse.status, errorText)
-            throw new Error(`Failed to create user: ${createResponse.status} ${errorText}`)
-          }
-
-          response = createResponse
         }
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        setUserData(data)
-        console.log('📊 User Data:', data)
+        setUserData(userData)
+        console.log('📊 User Data:', userData)
       } catch (err) {
         console.error('Error fetching user data:', err)
         setError(err instanceof Error ? err.message : 'Failed to load user data')
