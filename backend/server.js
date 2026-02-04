@@ -16,6 +16,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +40,87 @@ app.use(express.json());
 // Инициализация Telegram Bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
-// ===== БАЗА ДАННЫХ (в реальном приложении используйте MongoDB/PostgreSQL) =====
+// ===== NOCODB КОНФИГУРАЦИЯ =====
+const NOCODB_API_URL = process.env.NOCODB_API_URL || 'http://localhost:8080/api/v1';
+const NOCODB_API_TOKEN = process.env.NOCODB_API_TOKEN;
+const NOCODB_BASE_ID = process.env.NOCODB_BASE_ID;
+
+// Класс для работы с NocoDB
+class NocoDBManager {
+  constructor(apiUrl, token, baseId) {
+    this.apiUrl = apiUrl;
+    this.token = token;
+    this.baseId = baseId;
+    this.useNocoDB = !!(apiUrl && token && baseId);
+  }
+
+  async request(method, path, data = null) {
+    try {
+      if (!this.useNocoDB) {
+        console.warn('⚠️ NocoDB не сконфигурирована, используем локальное хранилище');
+        return null;
+      }
+
+      const url = `${this.apiUrl}${path}`;
+      const config = {
+        method,
+        url,
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+      };
+
+      if (data) {
+        config.data = data;
+      }
+
+      console.log(`📡 NocoDB Request: ${method} ${url}`);
+      const response = await axios(config);
+      console.log(`✅ NocoDB Response: ${response.status}`);
+      return response.data;
+    } catch (err) {
+      console.error(`❌ NocoDB Error: ${err.message}`);
+      return null;
+    }
+  }
+
+  async getUsers() {
+    return this.request('GET', `/db/data/noco/${this.baseId}/Users`);
+  }
+
+  async getUser(telegramId) {
+    return this.request('GET', `/db/data/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`);
+  }
+
+  async createUser(userData) {
+    return this.request('POST', `/db/data/noco/${this.baseId}/Users`, userData);
+  }
+
+  async updateUser(telegramId, userData) {
+    return this.request('PATCH', `/db/data/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`, userData);
+  }
+
+  async getTournaments() {
+    return this.request('GET', `/db/data/noco/${this.baseId}/Tournaments`);
+  }
+
+  async createTournament(tournamentData) {
+    return this.request('POST', `/db/data/noco/${this.baseId}/Tournaments`, tournamentData);
+  }
+
+  async updateTournament(id, tournamentData) {
+    return this.request('PATCH', `/db/data/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`, tournamentData);
+  }
+
+  async deleteTournament(id) {
+    return this.request('DELETE', `/db/data/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`);
+  }
+}
+
+const noco = new NocoDBManager(NOCODB_API_URL, NOCODB_API_TOKEN, NOCODB_BASE_ID);
+
+// ===== БАЗА ДАННЫХ (локальное хранилище как fallback) =====
 const users = new Map();
 const shopItems = [
   { id: 1, name: 'Golden Skin', price: 200, category: 'cosmetic', emoji: '✨' },
@@ -99,51 +180,102 @@ let tournaments = loadTournaments();
 let tournamentIdCounter = Math.max(...Array.from(tournaments.keys()).map(k => k), 0) + 1;
 
 // ===== ROUTES: USERS =====
-app.post('/api/users', (req, res) => {
-  const { telegramId, username, firstName } = req.body;
-  
-  if (users.has(telegramId)) {
-    return res.json(users.get(telegramId));
+app.post('/api/users', async (req, res) => {
+  try {
+    const { telegramId, username, firstName } = req.body;
+    
+    // Проверяем в локальном хранилище
+    if (users.has(telegramId)) {
+      return res.json(users.get(telegramId));
+    }
+
+    const user = {
+      telegramId,
+      username,
+      firstName,
+      balance: 1000,
+      stars: 0,
+      level: 1,
+      experience: 0,
+      wins: 0,
+      losses: 0,
+      gameId: '',
+      serverId: '',
+      createdAt: new Date().toISOString(),
+    };
+
+    // Пытаемся сохранить в NocoDB
+    if (noco.useNocoDB) {
+      const nocoResult = await noco.createUser(user);
+      if (nocoResult) {
+        console.log('✅ User saved to NocoDB');
+        return res.json(nocoResult);
+      }
+    }
+
+    // Fallback: сохраняем в локальное хранилище
+    users.set(telegramId, user);
+    res.json(user);
+  } catch (err) {
+    console.error('Error creating user:', err);
+    res.status(500).json({ error: 'Failed to create user' });
   }
-
-  const user = {
-    telegramId,
-    username,
-    firstName,
-    balance: 1000, // Начальный баланс
-    stars: 0, // Добавляем поле звезд
-    level: 1,
-    experience: 0,
-    wins: 0,
-    losses: 0,
-    createdAt: new Date(),
-  };
-
-  users.set(telegramId, user);
-  res.json(user);
 });
 
-app.get('/api/users/:userId', (req, res) => {
-  const user = users.get(parseInt(req.params.userId));
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+app.get('/api/users/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
 
-  res.json(user);
+    // Пытаемся получить из NocoDB
+    if (noco.useNocoDB) {
+      const nocoResult = await noco.getUser(userId);
+      if (nocoResult && nocoResult.list && nocoResult.list.length > 0) {
+        console.log('✅ User loaded from NocoDB');
+        return res.json(nocoResult.list[0]);
+      }
+    }
+
+    // Fallback: получаем из локального хранилища
+    const user = users.get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
 });
 
-app.put('/api/users/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+app.put('/api/users/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
 
-  const updated = { ...user, ...req.body };
-  users.set(userId, updated);
-  res.json(updated);
+    // Пытаемся обновить в NocoDB
+    if (noco.useNocoDB) {
+      const nocoResult = await noco.updateUser(userId, req.body);
+      if (nocoResult) {
+        console.log('✅ User updated in NocoDB');
+        return res.json(nocoResult);
+      }
+    }
+
+    // Fallback: обновляем в локальном хранилище
+    const user = users.get(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updated = { ...user, ...req.body };
+    users.set(userId, updated);
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
 });
 
 // ===== ROUTES: STARS (Выдача звезд) =====
