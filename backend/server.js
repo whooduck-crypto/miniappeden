@@ -86,35 +86,35 @@ class NocoDBManager {
   }
 
   async getUsers() {
-    return this.request('GET', `/db/data/noco/${this.baseId}/Users`);
+    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Users`);
   }
 
   async getUser(telegramId) {
-    return this.request('GET', `/db/data/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`);
+    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`);
   }
 
   async createUser(userData) {
-    return this.request('POST', `/db/data/noco/${this.baseId}/Users`, userData);
+    return this.request('POST', `/db/data/v2/noco/${this.baseId}/Users`, userData);
   }
 
   async updateUser(telegramId, userData) {
-    return this.request('PATCH', `/db/data/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`, userData);
+    return this.request('PATCH', `/db/data/v2/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`, userData);
   }
 
   async getTournaments() {
-    return this.request('GET', `/db/data/noco/${this.baseId}/Tournaments`);
+    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Tournaments`);
   }
 
   async createTournament(tournamentData) {
-    return this.request('POST', `/db/data/noco/${this.baseId}/Tournaments`, tournamentData);
+    return this.request('POST', `/db/data/v2/noco/${this.baseId}/Tournaments`, tournamentData);
   }
 
   async updateTournament(id, tournamentData) {
-    return this.request('PATCH', `/db/data/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`, tournamentData);
+    return this.request('PATCH', `/db/data/v2/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`, tournamentData);
   }
 
   async deleteTournament(id) {
-    return this.request('DELETE', `/db/data/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`);
+    return this.request('DELETE', `/db/data/v2/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`);
   }
 }
 
