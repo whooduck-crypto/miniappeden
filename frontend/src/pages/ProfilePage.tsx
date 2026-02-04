@@ -125,13 +125,14 @@ export function ProfilePage() {
   }
 
   const userStats = {
-    username: userData?.username || telegramUser?.first_name || 'YourPlayer',
+    username: telegramUser?.first_name || telegramUser?.username || userData?.username || 'YourPlayer',
+    userAvatar: telegramUser?.photo_url || userData?.avatar || null,
     level: userData?.level || 1,
     experience: userData?.experience || 0,
     experienceToNextLevel: 10000,
     coins: userData?.balance || 0,
     stars: userData?.stars || 0,
-    rating: userData?.balance || 0,
+    rating: userData?.rating || 0,
     rank: 10,
     totalWins: userData?.wins || 0,
     totalLosses: userData?.losses || 0,
@@ -161,7 +162,28 @@ export function ProfilePage() {
       <h1>👤 Профиль</h1>
 
       <div className="profile-header">
-        <UserAvatar />
+        {userStats.userAvatar ? (
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            marginRight: '15px',
+            border: '3px solid #00d4ff',
+          }}>
+            <img 
+              src={userStats.userAvatar} 
+              alt={userStats.username}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+            />
+          </div>
+        ) : (
+          <UserAvatar />
+        )}
         <div className="profile-info">
           <h2>{userStats.username}</h2>
           <p className="profile-rank">Место #{userStats.rank} • Уровень {userStats.level}</p>

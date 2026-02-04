@@ -65,8 +65,10 @@ async function apiRequest(endpoint: string, options: RequestOptions = {}) {
   } catch (error) {
     console.error(`API Request Failed: ${endpoint}`, error);
     // Вместо того чтобы крашить приложение, возвращаем mock данные для режима разработки
+    const mockData = getMockDataForEndpoint(endpoint, options);
     console.warn(`⚠️ Using mock data for ${endpoint} (backend not available)`);
-    return getMockDataForEndpoint(endpoint, options);
+    console.log(`📦 Mock data:`, mockData);
+    return mockData;
   }
 }
 
@@ -83,9 +85,13 @@ function getMockDataForEndpoint(endpoint: string, options: RequestOptions): any 
       firstName: 'Dev User',
       level: 12,
       coins: 2540,
+      balance: 2540,
       wins: 28,
+      losses: 5,
       rating: 1850,
-      avatar: null
+      avatar: 'https://via.placeholder.com/160?text=Dev+User',
+      photo_url: 'https://via.placeholder.com/160?text=Dev+User',
+      createdAt: new Date().toISOString(),
     };
   }
   
@@ -118,7 +124,21 @@ function getMockDataForEndpoint(endpoint: string, options: RequestOptions): any 
   
   // Создание пользователя
   if (endpoint === '/users' && options.method === 'POST') {
-    return { id: 123456789, ...options.body };
+    const body = options.body || {};
+    return {
+      id: body.telegramId || 123456789,
+      telegramId: body.telegramId || 123456789,
+      username: body.username || 'dev_user',
+      firstName: body.firstName || 'Dev User',
+      level: 1,
+      coins: 1000,
+      balance: 1000,
+      stars: 0,
+      experience: 0,
+      wins: 0,
+      losses: 0,
+      createdAt: new Date().toISOString(),
+    };
   }
   
   // По умолчанию

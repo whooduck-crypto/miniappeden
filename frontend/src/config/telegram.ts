@@ -206,9 +206,11 @@ export function getMockUserInfo() {
   return {
     id: userId,
     first_name: 'Dev User',
+    last_name: 'Tester',
     username: 'dev_user',
     language_code: 'en',
     is_bot: false,
-    is_premium: false
+    is_premium: false,
+    photo_url: 'https://via.placeholder.com/160?text=Dev+User'
   };
 }
