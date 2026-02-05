@@ -99,7 +99,13 @@ export function TournamentDetailPage() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error('❌ Error response:', errorData)
-        throw new Error(errorData.error || 'Failed to join tournament')
+        
+        // Обработка специфичных ошибок
+        if (errorData.error === 'Missing game_id' || errorData.error === 'Missing server_id') {
+          throw new Error(errorData.message || 'Пожалуйста, заполните game_id и server_id в профиле')
+        }
+        
+        throw new Error(errorData.message || errorData.error || 'Failed to join tournament')
       }
 
       const data = await response.json()
@@ -240,6 +246,25 @@ export function TournamentDetailPage() {
           <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
             {formatDate(tournament.endDate)}
           </div>
+        </div>
+      </div>
+
+      {/* Информация о требованиях */}
+      <div style={{
+        background: 'rgba(33, 150, 243, 0.1)',
+        border: '1px solid #2196f3',
+        borderRadius: '8px',
+        padding: '12px',
+        marginBottom: '20px',
+        fontSize: '13px',
+      }}>
+        <div style={{ marginBottom: '6px', fontWeight: 'bold', color: '#2196f3' }}>
+          ℹ️ Требования для регистрации
+        </div>
+        <div style={{ opacity: 0.8, lineHeight: '1.5' }}>
+          • Заполненные Game ID и Server ID в профиле<br/>
+          • Достаточный баланс монет ({tournament.entryFee || 0} монет)<br/>
+          • Выбор роли (Мидер или Роумер)
         </div>
       </div>
 

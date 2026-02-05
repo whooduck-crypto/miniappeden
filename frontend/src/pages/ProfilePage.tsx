@@ -342,6 +342,56 @@ export function ProfilePage() {
         )}
       </div>
 
+      {/* Статус данных для турниров */}
+      <div style={{
+        background: (!gameId || !serverId) 
+          ? 'rgba(255, 193, 7, 0.1)' 
+          : 'rgba(76, 175, 80, 0.1)',
+        border: (!gameId || !serverId) 
+          ? '1px solid #ffc107' 
+          : '1px solid #4caf50',
+        borderRadius: '8px',
+        padding: '15px',
+        marginBottom: '20px',
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '10px',
+          marginBottom: '8px'
+        }}>
+          {(!gameId || !serverId) ? (
+            <>
+              <span style={{ fontSize: '20px' }}>⚠️</span>
+              <span style={{ fontWeight: 'bold', color: '#ffc107' }}>
+                Требуется заполнить данные для участия в турнирах
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '20px' }}>✅</span>
+              <span style={{ fontWeight: 'bold', color: '#4caf50' }}>
+                Все данные заполнены, вы готовы участвовать в турнирах!
+              </span>
+            </>
+          )}
+        </div>
+        <div style={{ fontSize: '13px', opacity: 0.8, lineHeight: '1.6' }}>
+          {!gameId && (
+            <div>🎮 Game ID: {gameId ? '✅' : '❌ не заполнен'}</div>
+          )}
+          {!serverId && (
+            <div>🖥️ Server ID: {serverId ? '✅' : '❌ не заполнен'}</div>
+          )}
+          {!gameId || !serverId ? (
+            <div style={{ marginTop: '8px' }}>
+              Для участия в турнирах необходимо указать ваш Game ID и Server ID.
+              Заполните эти данные, нажав на кнопку &quot;✏️ Редактировать&quot; выше.
+            </div>
+          ) : null}
+        </div>
+      </div>
+
       <div className="stats-grid">
         <div className="stat-box">
           <span className="stat-icon">💰</span>

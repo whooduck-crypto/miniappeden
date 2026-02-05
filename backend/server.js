@@ -766,6 +766,21 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
+    // Проверить наличие game_id и server_id
+    if (!user.game_id || user.game_id.trim() === '') {
+      return res.status(400).json({ 
+        error: 'Missing game_id',
+        message: 'Вы не указали game_id. Обновите ваш профиль в приложении.' 
+      });
+    }
+
+    if (!user.server_id || user.server_id.trim() === '') {
+      return res.status(400).json({ 
+        error: 'Missing server_id',
+        message: 'Вы не указали server_id. Обновите ваш профиль в приложении.' 
+      });
+    }
+
     // Проверить, не участвует ли уже
     const existingResult = await pool.query(
       'SELECT id FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
