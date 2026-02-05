@@ -240,17 +240,17 @@ export const tournamentAPI = {
 
   // Присоединиться к турниру
   joinTournament(userId: number, tournamentId: number) {
-    return apiRequest('/tournaments/join', {
+    return apiRequest(`/tournaments/${tournamentId}/join`, {
       method: 'POST',
-      body: { userId, tournamentId },
+      body: { userId },
     });
   },
 
   // Выйти из турнира
   leaveTournament(userId: number, tournamentId: number) {
-    return apiRequest('/tournaments/leave', {
+    return apiRequest(`/tournaments/${tournamentId}/leave`, {
       method: 'POST',
-      body: { userId, tournamentId },
+      body: { userId },
     });
   },
 
