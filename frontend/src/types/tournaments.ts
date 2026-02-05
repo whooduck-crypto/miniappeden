@@ -2,6 +2,8 @@
  * Типы данных для турниров
  */
 
+export type ParticipantRole = 'mider' | 'roumer'
+
 export interface Tournament {
   id: number
   name: string
@@ -24,6 +26,7 @@ export interface TournamentParticipant {
   joinedAt: string
   score: number
   position?: number
+  role?: ParticipantRole
 }
 
 export interface CreateTournamentData {
@@ -43,4 +46,5 @@ export interface TournamentResult {
   position: number
   prize: number
   score: number
+  role?: ParticipantRole
 }

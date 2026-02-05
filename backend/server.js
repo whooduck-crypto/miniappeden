@@ -694,7 +694,7 @@ app.delete('/api/tournaments/:tournamentId', async (req, res) => {
 app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
   try {
     const tournamentId = parseInt(req.params.tournamentId);
-    const { userId } = req.body;
+    const { userId, role } = req.body;
 
     // Получить турнир
     const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
@@ -731,11 +731,11 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
       return res.status(400).json({ error: 'Already joined' });
     }
 
-    // Добавить участника
+    // Добавить участника с ролью
     await pool.query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, username, score)
-       VALUES ($1, $2, $3, 0)`,
-      [tournamentId, userId, user.username]
+      `INSERT INTO tournament_participants (tournament_id, user_id, username, score, role)
+       VALUES ($1, $2, $3, 0, $4)`,
+      [tournamentId, userId, user.username, role || null]
     );
 
     // Обновить турнир
@@ -755,7 +755,7 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
     res.json({
       success: true,
       message: 'Joined tournament',
-      tournament: updatedTournamentResult.rows[0],
+      tournament: transformTournament(updatedTournamentResult.rows[0]),
     });
   } catch (err) {
     console.error('Error joining tournament:', err);

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { Navigation } from './components/Navigation'
 import { DebugPanel } from './components/DebugPanel'
 import { HomePage } from './pages/HomePage'
 import { TournamentsPage } from './pages/TournamentsPage'
+import { TournamentDetailPage } from './pages/TournamentDetailPage'
 import { RatingPage } from './pages/RatingPage'
 import { ShopPage } from './pages/ShopPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -11,9 +13,9 @@ import { getTelegramUserInfo } from './config/telegram'
 import { getTelegramUserId, isAdmin, ADMIN_CONFIG } from './config/admin'
 import './App.css'
 
-function App() {
-  const [currentPage, setCurrentPage] = useState('home')
+function AppContent() {
   const [debugInfo, setDebugInfo] = useState<any>(null)
+  const location = useLocation()
 
   // Инициализация Telegram WebApp
   useEffect(() => {
@@ -59,33 +61,37 @@ function App() {
     })
   }, [])
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return <HomePage />
-      case 'tournaments':
-        return <TournamentsPage />
-      case 'rating':
-        return <RatingPage />
-      case 'shop':
-        return <ShopPage />
-      case 'profile':
-        return <ProfilePage />
-      case 'admin':
-        return <AdminPage />
-      default:
-        return <HomePage />
-    }
-  }
+  // Определяем текущую страницу для навигации
+  const currentPage = location.pathname.startsWith('/tournament/')
+    ? 'tournaments'
+    : location.pathname === '/'
+    ? 'home'
+    : location.pathname.replace('/', '') || 'home'
 
   return (
     <div className="app-container">
       <DebugPanel />
       <main className="app-content">
-        {renderPage()}
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/tournaments" element={<TournamentsPage />} />
+          <Route path="/tournament/:tournamentId" element={<TournamentDetailPage />} />
+          <Route path="/rating" element={<RatingPage />} />
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
       </main>
-      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Navigation currentPage={currentPage} onNavigate={() => {}} />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   )
 }
 

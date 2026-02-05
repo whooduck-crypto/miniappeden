@@ -74,6 +74,7 @@ async function initializeDatabase() {
         user_id BIGINT REFERENCES users(telegram_id),
         username VARCHAR(255),
         score INTEGER DEFAULT 0,
+        role VARCHAR(50),
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(tournament_id, user_id)
       )

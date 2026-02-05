@@ -2,8 +2,10 @@ import '../styles/Navigation.css'
 import { getTelegramUserInfo } from '../config/telegram'
 import { isAdmin, getTelegramUserId } from '../config/admin'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export function Navigation({ currentPage, onNavigate }: any) {
+  const navigate = useNavigate()
   const [userId, setUserId] = useState<number | null>(null)
   const [isUserAdmin, setIsUserAdmin] = useState(false)
 
@@ -26,21 +28,21 @@ export function Navigation({ currentPage, onNavigate }: any) {
   }, [])
 
   const navItems = [
-    { id: 'home', label: 'Главная', emoji: '🏠' },
-    { id: 'tournaments', label: 'Турниры', emoji: '🏆' },
-    { id: 'rating', label: 'Рейтинг', emoji: '📈' },
-    { id: 'shop', label: 'Магазин', emoji: '🛍️' },
-    { id: 'profile', label: 'Профиль', emoji: '👤' },
-    ...(isUserAdmin ? [{ id: 'admin', label: 'Админка', emoji: '⚙️' }] : []),
+    { id: 'home', label: 'Главная', emoji: '🏠', path: '/' },
+    { id: 'tournaments', label: 'Турниры', emoji: '🏆', path: '/tournaments' },
+    { id: 'rating', label: 'Рейтинг', emoji: '📈', path: '/rating' },
+    { id: 'shop', label: 'Магазин', emoji: '🛍️', path: '/shop' },
+    { id: 'profile', label: 'Профиль', emoji: '👤', path: '/profile' },
+    ...(isUserAdmin ? [{ id: 'admin', label: 'Админка', emoji: '⚙️', path: '/admin' }] : []),
   ]
 
   return (
     <nav className="navigation">
-      {navItems.map(({ id, label, emoji }) => (
+      {navItems.map(({ id, label, emoji, path }) => (
         <button
           key={id}
           className={`nav-item ${currentPage === id ? 'active' : ''}`}
-          onClick={() => onNavigate(id)}
+          onClick={() => navigate(path)}
           title={label}
         >
           <span className="nav-emoji">{emoji}</span>

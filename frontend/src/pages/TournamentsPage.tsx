@@ -1,5 +1,6 @@
 import '../App.css'
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 
@@ -30,12 +31,12 @@ function formatDate(dateString: string): string {
 }
 
 export function TournamentsPage() {
+  const navigate = useNavigate()
   const user = getTelegramUserInfo()
   const userId = user?.id
 
-  const { tournaments, loading, error, fetchTournaments, joinTournament } = useTournamentManagement()
+  const { tournaments, loading, error, fetchTournaments } = useTournamentManagement()
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
-  const [joining, setJoining] = useState<number | null>(null)
   const previousTournamentsRef = useRef<typeof tournaments>(null)
 
   // Загружаем турниры при монтировании
@@ -66,23 +67,14 @@ export function TournamentsPage() {
     return true
   })
 
-  const handleJoin = async (tournamentId: number) => {
+  const handleJoin = (tournamentId: number) => {
     if (!userId) {
       alert('❌ Требуется авторизация в Telegram')
       return
     }
 
-    setJoining(tournamentId)
-    try {
-      await joinTournament(userId, tournamentId)
-      alert('✅ Вы успешно присоединились к турниру!')
-      // Перезагружаем турниры после присоединения
-      await fetchTournaments()
-    } catch (err) {
-      alert(`❌ Ошибка: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setJoining(null)
-    }
+    // Открываем страницу деталей турнира
+    navigate(`/tournament/${tournamentId}`)
   }
 
   const getStatusBadge = (status: string) => {
@@ -193,27 +185,17 @@ export function TournamentsPage() {
 
               <button
                 onClick={() => handleJoin(tournament.id)}
-                disabled={
-                  joining === tournament.id ||
-                  tournament.status === 'finished' ||
-                  tournament.currentParticipants >= tournament.maxParticipants
-                }
+                disabled={tournament.status === 'finished'}
                 className={`btn ${
                   tournament.status === 'finished'
-                    ? 'btn-disabled'
-                    : tournament.currentParticipants >= tournament.maxParticipants
                     ? 'btn-disabled'
                     : 'btn-primary'
                 }`}
                 style={{ width: '100%', marginTop: '12px' }}
               >
-                {joining === tournament.id
-                  ? '⏳ Присоединение...'
-                  : tournament.status === 'finished'
+                {tournament.status === 'finished'
                   ? '✅ Завершен'
-                  : tournament.currentParticipants >= tournament.maxParticipants
-                  ? '❌ Турнир полный'
-                  : '➕ Присоединиться'}
+                  : '➕ Подробнее / Присоединиться'}
               </button>
             </div>
           ))}
