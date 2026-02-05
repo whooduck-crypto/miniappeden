@@ -30,8 +30,8 @@ export function AdminPage() {
   const [formData, setFormData] = useState<CreateTournamentData>({
     name: '',
     description: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    startDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + 86400000).toISOString(),
     maxParticipants: 32,
     entryFee: 100,
     prizePool: 1000,
@@ -61,6 +61,8 @@ export function AdminPage() {
       ...prev,
       [name]: name.includes('Participants') || name.includes('Fee') || name.includes('Pool')
         ? parseInt(value) || 0
+        : name === 'startDate' || name === 'endDate'
+        ? value ? new Date(value).toISOString() : ''
         : value,
     }))
   }
@@ -79,8 +81,8 @@ export function AdminPage() {
       setFormData({
         name: '',
         description: '',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 86400000).toISOString(),
         maxParticipants: 32,
         entryFee: 100,
         prizePool: 1000,
@@ -357,7 +359,7 @@ export function AdminPage() {
                   <input
                     type="date"
                     name="startDate"
-                    value={formData.startDate}
+                    value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
                     onChange={handleInputChange}
                     required
                     style={{
@@ -379,7 +381,7 @@ export function AdminPage() {
                   <input
                     type="date"
                     name="endDate"
-                    value={formData.endDate}
+                    value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
                     onChange={handleInputChange}
                     required
                     style={{
