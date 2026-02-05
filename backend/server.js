@@ -694,7 +694,9 @@ app.delete('/api/tournaments/:tournamentId', async (req, res) => {
 app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
   try {
     const tournamentId = parseInt(req.params.tournamentId);
-    const { userId, role } = req.body;
+    const { userId, role, username } = req.body;
+
+    console.log('🔗 Join Tournament Request:', { tournamentId, userId, role, username });
 
     // Получить турнир
     const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
@@ -704,13 +706,25 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
 
     const tournament = tournamentResult.rows[0];
 
-    // Получить пользователя
-    const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // Получить пользователя или создать если не существует
+    let userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
+    let user;
 
-    const user = userResult.rows[0];
+    if (userResult.rows.length === 0) {
+      console.log('👤 User not found, creating new user:', userId);
+      // Создаем пользователя если его нет
+      const createUserResult = await pool.query(
+        `INSERT INTO users (telegram_id, username, balance, stars, level, experience, wins, losses)
+         VALUES ($1, $2, 1000, 0, 1, 0, 0, 0)
+         RETURNING *`,
+        [userId, username || `User${userId}`]
+      );
+      user = createUserResult.rows[0];
+      console.log('✅ User created:', user.telegram_id);
+    } else {
+      user = userResult.rows[0];
+      console.log('✅ User found:', user.telegram_id);
+    }
 
     // Проверить ограничения
     if (tournament.current_participants >= tournament.max_participants) {

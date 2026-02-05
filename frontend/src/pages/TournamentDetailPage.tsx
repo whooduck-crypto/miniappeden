@@ -79,6 +79,8 @@ export function TournamentDetailPage() {
 
     setJoining(true)
     try {
+      console.log('📤 Joining tournament with:', { userId, role: selectedRole, username: user?.username })
+      
       // Отправляем запрос с ролью
       const response = await fetch(`https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}/join`, {
         method: 'POST',
@@ -88,14 +90,21 @@ export function TournamentDetailPage() {
         body: JSON.stringify({
           userId,
           role: selectedRole,
+          username: user?.username,
         }),
       })
 
+      console.log('📥 Response status:', response.status)
+
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('❌ Error response:', errorData)
         throw new Error(errorData.error || 'Failed to join tournament')
       }
 
+      const data = await response.json()
+      console.log('✅ Successfully joined:', data)
+      
       alert(`✅ Вы присоединились к турниру как ${selectedRole === 'mider' ? 'Мидер' : 'Роумер'}!`)
       
       // Обновляем данные турнира
