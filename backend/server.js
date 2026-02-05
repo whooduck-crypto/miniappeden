@@ -58,6 +58,37 @@ function transformTournament(row) {
 }
 
 
+// ===== MIGRATION ENDPOINT =====
+app.post('/api/migrate/add-role-column', async (req, res) => {
+  try {
+    console.log('🔄 Running migration: Adding role column...');
+    
+    // Проверяем, есть ли уже колонка role
+    const checkColumn = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='tournament_participants' AND column_name='role'
+    `);
+
+    if (checkColumn.rows.length > 0) {
+      console.log('✅ Column role already exists');
+      return res.json({ message: 'Column role already exists', status: 'success' });
+    }
+
+    // Добавляем колонку role
+    await pool.query(`
+      ALTER TABLE tournament_participants 
+      ADD COLUMN role VARCHAR(50)
+    `);
+
+    console.log('✅ Column role successfully added');
+    res.json({ message: 'Column role successfully added', status: 'success' });
+  } catch (err) {
+    console.error('❌ Migration error:', err);
+    res.status(500).json({ error: 'Migration failed', details: err.message });
+  }
+});
+
 // ===== ROUTES: USERS =====
 app.post('/api/users', async (req, res) => {
   try {
@@ -745,12 +776,37 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
       return res.status(400).json({ error: 'Already joined' });
     }
 
-    // Добавить участника с ролью
-    await pool.query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, username, score, role)
-       VALUES ($1, $2, $3, 0, $4)`,
-      [tournamentId, userId, user.username, role || null]
-    );
+    // Попытаемся добавить участника с ролью
+    // Если колонка role не существует, попробуем добавить её
+    try {
+      await pool.query(
+        `INSERT INTO tournament_participants (tournament_id, user_id, username, score, role)
+         VALUES ($1, $2, $3, 0, $4)`,
+        [tournamentId, userId, user.username, role || null]
+      );
+    } catch (insertError) {
+      console.error('Insert error:', insertError.message);
+      
+      // Если ошибка связана с отсутствием колонки role, добавим её и попробуем ещё раз
+      if (insertError.message.includes('column "role"')) {
+        console.log('⚠️  Adding role column to tournament_participants table...');
+        try {
+          await pool.query('ALTER TABLE tournament_participants ADD COLUMN IF NOT EXISTS role VARCHAR(50)');
+          
+          // Попробуем вставить ещё раз
+          await pool.query(
+            `INSERT INTO tournament_participants (tournament_id, user_id, username, score, role)
+             VALUES ($1, $2, $3, 0, $4)`,
+            [tournamentId, userId, user.username, role || null]
+          );
+        } catch (altError) {
+          console.error('Error adding role column:', altError);
+          throw altError;
+        }
+      } else {
+        throw insertError;
+      }
+    }
 
     // Обновить турнир
     await pool.query(
@@ -772,8 +828,16 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
       tournament: transformTournament(updatedTournamentResult.rows[0]),
     });
   } catch (err) {
-    console.error('Error joining tournament:', err);
-    res.status(500).json({ error: 'Failed to join tournament' });
+    console.error('❌ Error joining tournament:', err);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+    });
+    res.status(500).json({ 
+      error: 'Failed to join tournament',
+      details: err.message 
+    });
   }
 });
 
@@ -996,5 +1060,6 @@ app.listen(PORT, () => {
   console.log(`   GET    /api/tournaments`);
   console.log(`   POST   /api/admin/distribute-stars`);
   console.log(`   GET    /api/rating/stars-leaderboard`);
+  console.log(`   POST   /api/migrate/add-role-column (Migration: Add role column)`);
   console.log(`   GET    /health\n`);
 });
