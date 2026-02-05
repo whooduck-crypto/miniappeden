@@ -5,6 +5,23 @@ async function initializeDatabase() {
   try {
     console.log('🗄️ Инициализация базы данных...\n');
 
+    // Удалить старые таблицы если существуют
+    console.log('🗑️ Удаление старых таблиц...');
+    await pool.query('DROP TABLE IF EXISTS user_achievements CASCADE');
+    await pool.query('DROP TABLE IF EXISTS tournament_participants CASCADE');
+    await pool.query('DROP TABLE IF EXISTS shop_items CASCADE');
+    
+    // Удалить constraint если он существует
+    try {
+      await pool.query('ALTER TABLE IF EXISTS tournaments DROP CONSTRAINT IF EXISTS tournaments_created_by_fkey');
+    } catch (e) {
+      // Ignore if constraint doesn't exist
+    }
+    
+    await pool.query('DROP TABLE IF EXISTS tournaments CASCADE');
+    await pool.query('DROP TABLE IF EXISTS users CASCADE');
+    console.log('✅ Старые таблицы удалены\n');
+
     // Создание таблицы Users
     console.log('📝 Создание таблицы Users...');
     await pool.query(`
@@ -41,7 +58,7 @@ async function initializeDatabase() {
         entry_fee INTEGER DEFAULT 0,
         prize_pool INTEGER DEFAULT 0,
         status VARCHAR(50) DEFAULT 'pending',
-        created_by BIGINT REFERENCES users(telegram_id),
+        created_by BIGINT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
