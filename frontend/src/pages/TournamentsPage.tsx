@@ -3,6 +3,32 @@ import { useState, useEffect, useRef } from 'react'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 
+/**
+ * Функция для правильного парсинга и форматирования дат
+ * Преобразует ISO 8601 строку в локальную дату
+ */
+function formatDate(dateString: string): string {
+  try {
+    // Парсим ISO 8601 дату
+    const date = new Date(dateString)
+    
+    // Проверяем, что дата валидна
+    if (isNaN(date.getTime())) {
+      return 'N/A'
+    }
+    
+    // Форматируем в локальную дату (ru-RU)
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    })
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error)
+    return 'N/A'
+  }
+}
+
 export function TournamentsPage() {
   const user = getTelegramUserInfo()
   const userId = user?.id
@@ -158,10 +184,10 @@ export function TournamentsPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  📅 {tournament.startDate ? new Date(tournament.startDate).toLocaleDateString('ru-RU') : 'N/A'}
+                  📅 {tournament.startDate ? formatDate(tournament.startDate) : 'N/A'}
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  🏁 {tournament.endDate ? new Date(tournament.endDate).toLocaleDateString('ru-RU') : 'N/A'}
+                  🏁 {tournament.endDate ? formatDate(tournament.endDate) : 'N/A'}
                 </div>
               </div>
 

@@ -37,6 +37,26 @@ app.use(express.json());
 // Инициализация Telegram Bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
+// ===== HELPER: Преобразование snake_case в camelCase =====
+function transformTournament(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    maxParticipants: row.max_participants,
+    currentParticipants: row.current_participants,
+    entryFee: row.entry_fee,
+    prizePool: row.prize_pool,
+    status: row.status,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 
 // ===== ROUTES: USERS =====
 app.post('/api/users', async (req, res) => {
@@ -564,11 +584,11 @@ app.get('/api/tournaments', async (req, res) => {
     if (status) {
       query += ' WHERE status = $1';
       const result = await pool.query(query, [status]);
-      return res.json(result.rows);
+      return res.json(result.rows.map(transformTournament));
     }
     
     const result = await pool.query(query + ' ORDER BY created_at DESC');
-    res.json(result.rows);
+    res.json(result.rows.map(transformTournament));
   } catch (err) {
     console.error('Error getting tournaments:', err);
     res.status(500).json({ error: 'Failed to get tournaments' });
@@ -584,7 +604,7 @@ app.get('/api/tournaments/:tournamentId', async (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    const tournament = result.rows[0];
+    const tournament = transformTournament(result.rows[0]);
 
     // Получить участников
     const participantsResult = await pool.query(
@@ -615,7 +635,7 @@ app.post('/api/tournaments', async (req, res) => {
       [name, description || '', startDate, endDate, maxParticipants, entryFee || 0, prizePool || 0, createdBy]
     );
 
-    res.json(result.rows[0]);
+    res.json(transformTournament(result.rows[0]));
   } catch (err) {
     console.error('Error creating tournament:', err);
     res.status(500).json({ error: 'Failed to create tournament' });
@@ -647,7 +667,7 @@ app.put('/api/tournaments/:tournamentId', async (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    res.json(result.rows[0]);
+    res.json(transformTournament(result.rows[0]));
   } catch (err) {
     console.error('Error updating tournament:', err);
     res.status(500).json({ error: 'Failed to update tournament' });
@@ -880,7 +900,7 @@ app.get('/api/users/:userId/tournaments', async (req, res) => {
       [userId]
     );
 
-    res.json(result.rows);
+    res.json(result.rows.map(transformTournament));
   } catch (err) {
     console.error('Error getting user tournaments:', err);
     res.status(500).json({ error: 'Failed to get user tournaments' });
