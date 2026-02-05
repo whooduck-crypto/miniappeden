@@ -57,7 +57,21 @@ function transformTournament(row) {
   };
 }
 
-
+/**
+ * Трансформирует участника турнира из snake_case в camelCase
+ */
+function transformParticipant(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    tournamentId: row.tournament_id,
+    userId: row.user_id,
+    username: row.username,
+    score: row.score,
+    role: row.role,
+    joinedAt: row.joined_at,
+  };
+}
 // ===== MIGRATION ENDPOINT =====
 app.post('/api/migrate/add-role-column', async (req, res) => {
   try {
@@ -674,7 +688,7 @@ app.get('/api/tournaments/:tournamentId', async (req, res) => {
       [tournamentId]
     );
 
-    tournament.participants = participantsResult.rows;
+    tournament.participants = participantsResult.rows.map(transformParticipant);
     res.json(tournament);
   } catch (err) {
     console.error('Error getting tournament:', err);
