@@ -11,11 +11,56 @@ import { ProfilePage } from './pages/ProfilePage'
 import { AdminPage } from './pages/AdminPage'
 import { getTelegramUserInfo } from './config/telegram'
 import { getTelegramUserId, isAdmin, ADMIN_CONFIG } from './config/admin'
+import { userAPI } from './services/api'
 import './App.css'
 
 function AppContent() {
   const [debugInfo, setDebugInfo] = useState<any>(null)
   const location = useLocation()
+
+  // Инициализация пользователя при первом входе
+  useEffect(() => {
+    const initializeUser = async () => {
+      try {
+        const user = getTelegramUserInfo()
+        const userId = getTelegramUserId()
+
+        if (!userId || !user) {
+          console.warn('⚠️ Cannot initialize user: missing Telegram data')
+          return
+        }
+
+        console.log('👤 Initializing user:', { userId, username: user.username })
+
+        // Пытаемся получить пользователя
+        try {
+          const existingUser = await userAPI.getProfile(userId)
+          console.log('✅ User exists, updating...', existingUser)
+
+          // Обновляем данные пользователя
+          await userAPI.updateProfile(userId, {
+            username: user.username,
+            firstName: user.first_name || 'User',
+          })
+          console.log('✅ User data updated')
+        } catch (err) {
+          // Если пользователь не найден, создаем его
+          console.log('👤 User not found, creating new...')
+
+          const newUser = await userAPI.createUser({
+            telegramId: userId,
+            username: user.username,
+            firstName: user.first_name || 'User',
+          })
+          console.log('✅ User created successfully:', newUser)
+        }
+      } catch (err) {
+        console.error('❌ Error initializing user:', err)
+      }
+    }
+
+    initializeUser()
+  }, [])
 
   // Инициализация Telegram WebApp
   useEffect(() => {

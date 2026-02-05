@@ -2,6 +2,7 @@ import '../App.css'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getTelegramUserInfo } from '../config/telegram'
+import { api } from '../config/api'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 import type { Tournament, ParticipantRole } from '../types/tournaments'
 
@@ -46,7 +47,7 @@ export function TournamentDetailPage() {
       try {
         setLoading(true)
         const id = parseInt(tournamentId || '')
-        const response = await fetch(`https://web-production-b6f80.up.railway.app/api/tournaments/${id}`)
+        const response = await fetch(api.tournaments.detail(id))
         
         if (!response.ok) {
           throw new Error('Tournament not found')
@@ -82,7 +83,7 @@ export function TournamentDetailPage() {
       console.log('📤 Joining tournament with:', { userId, role: selectedRole, username: user?.username })
       
       // Отправляем запрос с ролью
-      const response = await fetch(`https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}/join`, {
+      const response = await fetch(api.tournaments.join(tournament.id), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +115,7 @@ export function TournamentDetailPage() {
       alert(`✅ Вы присоединились к турниру как ${selectedRole === 'mider' ? 'Мидер' : 'Роумер'}!`)
       
       // Обновляем данные турнира
-      const updatedResponse = await fetch(`https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}`)
+      const updatedResponse = await fetch(api.tournaments.detail(tournament.id))
       const updatedTournament = await updatedResponse.json()
       setTournament(updatedTournament)
       
@@ -403,7 +404,7 @@ export function TournamentDetailPage() {
               try {
                 setJoining(true);
                 const response = await fetch(
-                  `https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}/leave`,
+                  api.tournaments.leave(tournament.id),
                   {
                     method: 'POST',
                     headers: {
@@ -423,7 +424,7 @@ export function TournamentDetailPage() {
                 
                 // Обновляем данные турнира
                 const updatedResponse = await fetch(
-                  `https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}`
+                  api.tournaments.detail(tournament.id)
                 );
                 const updatedTournament = await updatedResponse.json();
                 setTournament(updatedTournament);

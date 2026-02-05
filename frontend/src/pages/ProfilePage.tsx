@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import '../App.css'
 import { UserAvatar } from '../components/UserAvatar'
 import { getTelegramUserInfo } from '../config/telegram'
+import { api } from '../config/api'
 import { userAPI } from '../services/api'
 
 export function ProfilePage() {
@@ -78,9 +79,8 @@ export function ProfilePage() {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/users/${userId}`)
-        if (response.ok) {
-          const data = await response.json()
+        const data = await userAPI.getProfile(userId)
+        if (data) {
           setUserData(data)
         }
       } catch (err) {
@@ -305,7 +305,7 @@ export function ProfilePage() {
                   
                   // Проверяем, есть ли активные регистрации в турнирах
                   const activeTournamentsResponse = await fetch(
-                    `https://web-production-b6f80.up.railway.app/api/users/${userId}/active-tournaments`
+                    api.users.activeTournaments(userId)
                   );
                   const activeTournamentsData = await activeTournamentsResponse.json();
                   
