@@ -12,7 +12,7 @@ const isDev = !import.meta.env.PROD;
 const API_URL = import.meta.env.VITE_API_URL || (
   isDev 
     ? 'http://localhost:3000/api'
-    : 'https://miniappeden-production.up.railway.app/api'
+    : 'https://web-production-b6f80.up.railway.app/api'
 );
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
