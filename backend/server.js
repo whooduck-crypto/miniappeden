@@ -1,9 +1,11 @@
 /**
- * ПРИМЕР: Backend сервер на Node.js + Express
+ * Backend сервер на Node.js + Express + PostgreSQL
  * 
  * УСТАНОВКА:
- * npm init -y
- * npm install express cors dotenv node-telegram-bot-api
+ * npm install
+ * 
+ * ИНИЦИАЛИЗАЦИЯ БД:
+ * node init-db.js
  * 
  * ЗАПУСК:
  * node server.js
@@ -13,12 +15,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import axios from 'axios';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import pool from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,182 +37,27 @@ app.use(express.json());
 // Инициализация Telegram Bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
-// ===== NOCODB КОНФИГУРАЦИЯ =====
-const NOCODB_API_URL = process.env.NOCODB_API_URL || 'http://localhost:8080/api/v1';
-const NOCODB_API_TOKEN = process.env.NOCODB_API_TOKEN;
-const NOCODB_BASE_ID = process.env.NOCODB_BASE_ID;
-
-// Класс для работы с NocoDB
-class NocoDBManager {
-  constructor(apiUrl, token, baseId) {
-    this.apiUrl = apiUrl;
-    this.token = token;
-    this.baseId = baseId;
-    this.useNocoDB = !!(apiUrl && token && baseId);
-  }
-
-  async request(method, path, data = null) {
-    try {
-      if (!this.useNocoDB) {
-        console.warn('⚠️ NocoDB не сконфигурирована, используем локальное хранилище');
-        return null;
-      }
-
-      const url = `${this.apiUrl}${path}`;
-      const config = {
-        method,
-        url,
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      };
-
-      if (data) {
-        config.data = data;
-      }
-
-      console.log(`📡 NocoDB Request: ${method} ${url}`);
-      const response = await axios(config);
-      console.log(`✅ NocoDB Response: ${response.status}`);
-      return response.data;
-    } catch (err) {
-      console.error(`❌ NocoDB Error: ${err.message}`);
-      return null;
-    }
-  }
-
-  async getUsers() {
-    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Users`);
-  }
-
-  async getUser(telegramId) {
-    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`);
-  }
-
-  async createUser(userData) {
-    return this.request('POST', `/db/data/v2/noco/${this.baseId}/Users`, userData);
-  }
-
-  async updateUser(telegramId, userData) {
-    return this.request('PATCH', `/db/data/v2/noco/${this.baseId}/Users?where=(telegramId,eq,${telegramId})`, userData);
-  }
-
-  async getTournaments() {
-    return this.request('GET', `/db/data/v2/noco/${this.baseId}/Tournaments`);
-  }
-
-  async createTournament(tournamentData) {
-    return this.request('POST', `/db/data/v2/noco/${this.baseId}/Tournaments`, tournamentData);
-  }
-
-  async updateTournament(id, tournamentData) {
-    return this.request('PATCH', `/db/data/v2/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`, tournamentData);
-  }
-
-  async deleteTournament(id) {
-    return this.request('DELETE', `/db/data/v2/noco/${this.baseId}/Tournaments?where=(id,eq,${id})`);
-  }
-}
-
-const noco = new NocoDBManager(NOCODB_API_URL, NOCODB_API_TOKEN, NOCODB_BASE_ID);
-
-// ===== БАЗА ДАННЫХ (локальное хранилище как fallback) =====
-const users = new Map();
-const shopItems = [
-  { id: 1, name: 'Golden Skin', price: 200, category: 'cosmetic', emoji: '✨' },
-  { id: 2, name: 'Double Points', price: 150, category: 'powerup', emoji: '2️⃣' },
-  { id: 3, name: 'VIP Badge', price: 300, category: 'badge', emoji: '👑' },
-];
-
-// ===== PERSISTENCE: TOURNAMENTS =====
-const TOURNAMENTS_FILE = path.join(__dirname, 'data', 'tournaments.json');
-
-// Убедимся, что папка data существует
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
-}
-
-// Функция для загрузки турниров из файла
-function loadTournaments() {
-  try {
-    if (fs.existsSync(TOURNAMENTS_FILE)) {
-      const data = fs.readFileSync(TOURNAMENTS_FILE, 'utf-8');
-      
-      // Проверяем, что файл не пустой
-      if (!data || data.trim() === '') {
-        console.log('Tournaments file is empty, returning empty map');
-        return new Map();
-      }
-
-      const tournamentsData = JSON.parse(data);
-      
-      // Проверяем, что это массив
-      if (!Array.isArray(tournamentsData)) {
-        console.log('Tournaments data is not an array, returning empty map');
-        return new Map();
-      }
-
-      return new Map(tournamentsData.map(t => [t.id, t]));
-    }
-  } catch (err) {
-    console.error('Error loading tournaments:', err.message);
-  }
-  return new Map();
-}
-
-// Функция для сохранения турниров в файл
-function saveTournaments(tournamentsMap) {
-  try {
-    const data = Array.from(tournamentsMap.values());
-    fs.writeFileSync(TOURNAMENTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    console.log('Tournaments saved to file');
-  } catch (err) {
-    console.error('Error saving tournaments:', err);
-  }
-}
-
-// Хранилище турниров (загружаем из файла)
-let tournaments = loadTournaments();
-let tournamentIdCounter = Math.max(...Array.from(tournaments.keys()).map(k => k), 0) + 1;
 
 // ===== ROUTES: USERS =====
 app.post('/api/users', async (req, res) => {
   try {
     const { telegramId, username, firstName } = req.body;
     
-    // Проверяем в локальном хранилище
-    if (users.has(telegramId)) {
-      return res.json(users.get(telegramId));
+    // Проверяем, существует ли уже пользователь
+    const existing = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+    
+    if (existing.rows.length > 0) {
+      return res.json(existing.rows[0]);
     }
 
-    const user = {
-      telegramId,
-      username,
-      firstName,
-      balance: 1000,
-      stars: 0,
-      level: 1,
-      experience: 0,
-      wins: 0,
-      losses: 0,
-      gameId: '',
-      serverId: '',
-      createdAt: new Date().toISOString(),
-    };
+    const result = await pool.query(
+      `INSERT INTO users (telegram_id, username, first_name, balance, stars, level, experience, wins, losses)
+       VALUES ($1, $2, $3, 1000, 0, 1, 0, 0, 0)
+       RETURNING *`,
+      [telegramId, username, firstName]
+    );
 
-    // Пытаемся сохранить в NocoDB
-    if (noco.useNocoDB) {
-      const nocoResult = await noco.createUser(user);
-      if (nocoResult) {
-        console.log('✅ User saved to NocoDB');
-        return res.json(nocoResult);
-      }
-    }
-
-    // Fallback: сохраняем в локальное хранилище
-    users.set(telegramId, user);
-    res.json(user);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error creating user:', err);
     res.status(500).json({ error: 'Failed to create user' });
@@ -226,23 +68,13 @@ app.get('/api/users/:userId', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
 
-    // Пытаемся получить из NocoDB
-    if (noco.useNocoDB) {
-      const nocoResult = await noco.getUser(userId);
-      if (nocoResult && nocoResult.list && nocoResult.list.length > 0) {
-        console.log('✅ User loaded from NocoDB');
-        return res.json(nocoResult.list[0]);
-      }
-    }
-
-    // Fallback: получаем из локального хранилища
-    const user = users.get(userId);
+    const result = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
     
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error fetching user:', err);
     res.status(500).json({ error: 'Failed to fetch user' });
@@ -252,26 +84,31 @@ app.get('/api/users/:userId', async (req, res) => {
 app.put('/api/users/:userId', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
+    const { username, firstName, balance, stars, level, experience, wins, losses, gameId, serverId } = req.body;
 
-    // Пытаемся обновить в NocoDB
-    if (noco.useNocoDB) {
-      const nocoResult = await noco.updateUser(userId, req.body);
-      if (nocoResult) {
-        console.log('✅ User updated in NocoDB');
-        return res.json(nocoResult);
-      }
-    }
+    const result = await pool.query(
+      `UPDATE users 
+       SET username = COALESCE($2, username),
+           first_name = COALESCE($3, first_name),
+           balance = COALESCE($4, balance),
+           stars = COALESCE($5, stars),
+           level = COALESCE($6, level),
+           experience = COALESCE($7, experience),
+           wins = COALESCE($8, wins),
+           losses = COALESCE($9, losses),
+           game_id = COALESCE($10, game_id),
+           server_id = COALESCE($11, server_id),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE telegram_id = $1
+       RETURNING *`,
+      [userId, username, firstName, balance, stars, level, experience, wins, losses, gameId, serverId]
+    );
 
-    // Fallback: обновляем в локальном хранилище
-    const user = users.get(userId);
-    
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const updated = { ...user, ...req.body };
-    users.set(userId, updated);
-    res.json(updated);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating user:', err);
     res.status(500).json({ error: 'Failed to update user' });
@@ -292,7 +129,7 @@ app.put('/api/users/:userId', async (req, res) => {
  *   ]
  * }
  */
-app.post('/api/admin/distribute-stars', (req, res) => {
+app.post('/api/admin/distribute-stars', async (req, res) => {
   try {
     const { users: usersToUpdate } = req.body;
 
@@ -330,19 +167,13 @@ app.post('/api/admin/distribute-stars', (req, res) => {
     for (const { username, stars } of usersToUpdate) {
       try {
         // Ищем пользователя по username
-        let foundUser = null;
-        let foundUserId = null;
+        const cleanUsername = username.startsWith('@') ? username : `@${username}`;
+        const result = await pool.query(
+          'SELECT * FROM users WHERE username = $1 OR username = $2',
+          [username, cleanUsername]
+        );
 
-        // Ищем в Map users по username
-        for (const [userId, user] of users.entries()) {
-          if (user.username === username || user.username === `@${username}`) {
-            foundUser = user;
-            foundUserId = userId;
-            break;
-          }
-        }
-
-        if (!foundUser) {
+        if (result.rows.length === 0) {
           results.push({
             username,
             success: false,
@@ -351,15 +182,18 @@ app.post('/api/admin/distribute-stars', (req, res) => {
           continue;
         }
 
-        // Обновляем баланс звезд
-        foundUser.stars = (foundUser.stars || 0) + stars;
-        foundUser.updatedAt = new Date();
-        users.set(foundUserId, foundUser);
+        const user = result.rows[0];
+        const newStars = (user.stars || 0) + stars;
+
+        await pool.query(
+          'UPDATE users SET stars = $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
+          [newStars, user.telegram_id]
+        );
 
         results.push({
           username,
           success: true,
-          stars: foundUser.stars,
+          stars: newStars,
         });
 
         totalDistributed += stars;
@@ -394,18 +228,25 @@ app.post('/api/admin/distribute-stars', (req, res) => {
  * Получить звезды пользователя
  * GET /api/users/:userId/stars
  */
-app.get('/api/users/:userId/stars', (req, res) => {
-  const user = users.get(parseInt(req.params.userId));
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+app.get('/api/users/:userId/stars', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const result = await pool.query('SELECT telegram_id, username, stars FROM users WHERE telegram_id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-  res.json({
-    userId: user.telegramId,
-    username: user.username,
-    stars: user.stars || 0,
-  });
+    const user = result.rows[0];
+    res.json({
+      userId: user.telegram_id,
+      username: user.username,
+      stars: user.stars || 0,
+    });
+  } catch (err) {
+    console.error('Error fetching stars:', err);
+    res.status(500).json({ error: 'Failed to fetch stars' });
+  }
 });
 
 /**
@@ -415,45 +256,57 @@ app.get('/api/users/:userId/stars', (req, res) => {
  * Body:
  * { "stars": 50, "reason": "Achievement unlocked" }
  */
-app.post('/api/users/:userId/add-stars', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const { stars, reason } = req.body;
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+app.post('/api/users/:userId/add-stars', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { stars, reason } = req.body;
+
+    if (!Number.isInteger(stars) || stars <= 0) {
+      return res.status(400).json({ error: 'Stars must be a positive integer' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET stars = stars + $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2 RETURNING *',
+      [stars, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: `Added ${stars} stars${reason ? ` (${reason})` : ''}`,
+      newStars: result.rows[0].stars,
+    });
+  } catch (err) {
+    console.error('Error adding stars:', err);
+    res.status(500).json({ error: 'Failed to add stars' });
   }
-
-  if (!Number.isInteger(stars) || stars <= 0) {
-    return res.status(400).json({ error: 'Stars must be a positive integer' });
-  }
-
-  user.stars = (user.stars || 0) + stars;
-  user.updatedAt = new Date();
-  users.set(userId, user);
-
-  res.json({
-    success: true,
-    message: `Added ${stars} stars${reason ? ` (${reason})` : ''}`,
-    newStars: user.stars,
-  });
 });
 
 /**
  * Получить топ пользователей по звездам
  * GET /api/rating/stars-leaderboard?limit=10
  */
-app.get('/api/rating/stars-leaderboard', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 100, 100);
-  const leaderboard = Array.from(users.values())
-    .sort((a, b) => (b.stars || 0) - (a.stars || 0))
-    .slice(0, limit)
-    .map((user, index) => ({
+app.get('/api/rating/stars-leaderboard', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 100);
+    const result = await pool.query(
+      'SELECT * FROM users ORDER BY stars DESC, telegram_id ASC LIMIT $1',
+      [limit]
+    );
+
+    const leaderboard = result.rows.map((user, index) => ({
       ...user,
       position: index + 1,
     }));
 
-  res.json(leaderboard);
+    res.json(leaderboard);
+  } catch (err) {
+    console.error('Error getting stars leaderboard:', err);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
 });
 
 /**
@@ -463,28 +316,28 @@ app.get('/api/rating/stars-leaderboard', (req, res) => {
  * Body:
  * { "amount": 500, "reason": "Tournament prize" }
  */
-app.post('/api/users/:userId/add-balance', (req, res) => {
+app.post('/api/users/:userId/add-balance', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { amount, reason } = req.body;
-    const user = users.get(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
 
     if (!Number.isInteger(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive integer' });
     }
 
-    user.balance = (user.balance || 0) + amount;
-    user.updatedAt = new Date();
-    users.set(userId, user);
+    const result = await pool.query(
+      'UPDATE users SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2 RETURNING *',
+      [amount, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     res.json({
       success: true,
       message: `Added ${amount} coins${reason ? ` (${reason})` : ''}`,
-      newBalance: user.balance,
+      newBalance: result.rows[0].balance,
     });
   } catch (err) {
     console.error('Error adding balance:', err);
@@ -499,32 +352,37 @@ app.post('/api/users/:userId/add-balance', (req, res) => {
  * Body:
  * { "amount": 100, "reason": "Tournament entry" }
  */
-app.post('/api/users/:userId/deduct-balance', (req, res) => {
+app.post('/api/users/:userId/deduct-balance', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { amount, reason } = req.body;
-    const user = users.get(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
 
     if (!Number.isInteger(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive integer' });
     }
 
-    if (user.balance < amount) {
+    const result = await pool.query(
+      'SELECT balance FROM users WHERE telegram_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (result.rows[0].balance < amount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
-    user.balance -= amount;
-    user.updatedAt = new Date();
-    users.set(userId, user);
+    const updateResult = await pool.query(
+      'UPDATE users SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2 RETURNING *',
+      [amount, userId]
+    );
 
     res.json({
       success: true,
       message: `Deducted ${amount} coins${reason ? ` (${reason})` : ''}`,
-      newBalance: user.balance,
+      newBalance: updateResult.rows[0].balance,
     });
   } catch (err) {
     console.error('Error deducting balance:', err);
@@ -536,16 +394,18 @@ app.post('/api/users/:userId/deduct-balance', (req, res) => {
  * Получить лидерборд по монетам
  * GET /api/rating/coins-leaderboard?limit=10
  */
-app.get('/api/rating/coins-leaderboard', (req, res) => {
+app.get('/api/rating/coins-leaderboard', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 100, 100);
-    const leaderboard = Array.from(users.values())
-      .sort((a, b) => (b.balance || 0) - (a.balance || 0))
-      .slice(0, limit)
-      .map((user, index) => ({
-        ...user,
-        position: index + 1,
-      }));
+    const result = await pool.query(
+      'SELECT * FROM users ORDER BY balance DESC, telegram_id ASC LIMIT $1',
+      [limit]
+    );
+
+    const leaderboard = result.rows.map((user, index) => ({
+      ...user,
+      position: index + 1,
+    }));
 
     res.json(leaderboard);
   } catch (err) {
@@ -555,117 +415,184 @@ app.get('/api/rating/coins-leaderboard', (req, res) => {
 });
 
 // ===== ROUTES: SHOP =====
-app.get('/api/shop/items', (req, res) => {
-  res.json(shopItems);
+app.get('/api/shop/items', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM shop_items ORDER BY id');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching shop items:', err);
+    res.status(500).json({ error: 'Failed to fetch shop items' });
+  }
 });
 
-app.post('/api/shop/purchase', (req, res) => {
-  const { userId, itemId } = req.body;
-  const user = users.get(userId);
-  const item = shopItems.find(i => i.id === itemId);
+app.post('/api/shop/purchase', async (req, res) => {
+  try {
+    const { userId, itemId } = req.body;
 
-  if (!user || !item) {
-    return res.status(404).json({ error: 'User or item not found' });
+    // Получить товар
+    const itemResult = await pool.query('SELECT * FROM shop_items WHERE id = $1', [itemId]);
+    if (itemResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    const item = itemResult.rows[0];
+
+    // Получить пользователя
+    const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.balance < item.price) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    // Обновить баланс пользователя
+    await pool.query(
+      'UPDATE users SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
+      [item.price, userId]
+    );
+
+    res.json({
+      success: true,
+      message: `Purchased ${item.name}`,
+      newBalance: user.balance - item.price,
+    });
+  } catch (err) {
+    console.error('Error purchasing item:', err);
+    res.status(500).json({ error: 'Failed to purchase item' });
   }
-
-  if (user.balance < item.price) {
-    return res.status(400).json({ error: 'Insufficient balance' });
-  }
-
-  user.balance -= item.price;
-  users.set(userId, user);
-
-  res.json({
-    success: true,
-    message: `Purchased ${item.name}`,
-    newBalance: user.balance,
-  });
 });
 
-app.get('/api/shop/user/:userId/items', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+app.get('/api/shop/user/:userId/items', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const result = await pool.query('SELECT owned_items FROM users WHERE telegram_id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-  res.json(user.ownedItems || []);
+    res.json(result.rows[0].owned_items || []);
+  } catch (err) {
+    console.error('Error fetching user items:', err);
+    res.status(500).json({ error: 'Failed to fetch user items' });
+  }
 });
 
 // ===== ROUTES: RATING =====
-app.get('/api/rating/leaderboard', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 100, 100);
-  const leaderboard = Array.from(users.values())
-    .sort((a, b) => (b.wins - a.wins) || (a.losses - b.losses))
-    .slice(0, limit);
+app.get('/api/rating/leaderboard', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 100);
+    const result = await pool.query(
+      'SELECT * FROM users ORDER BY wins DESC, losses ASC, telegram_id ASC LIMIT $1',
+      [limit]
+    );
 
-  res.json(leaderboard);
+    const leaderboard = result.rows.map((user, index) => ({
+      ...user,
+      position: index + 1,
+    }));
+
+    res.json(leaderboard);
+  } catch (err) {
+    console.error('Error getting leaderboard:', err);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
 });
 
-app.get('/api/rating/user/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+app.get('/api/rating/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    const leaderboardResult = await pool.query(
+      'SELECT telegram_id FROM users ORDER BY wins DESC, losses ASC, telegram_id ASC'
+    );
+
+    const position = leaderboardResult.rows.findIndex(u => u.telegram_id === userId) + 1;
+
+    res.json({
+      user,
+      position,
+      totalPlayers: leaderboardResult.rows.length,
+    });
+  } catch (err) {
+    console.error('Error getting user rating:', err);
+    res.status(500).json({ error: 'Failed to get user rating' });
   }
-
-  const leaderboard = Array.from(users.values())
-    .sort((a, b) => (b.wins - a.wins) || (a.losses - b.losses));
-  
-  const position = leaderboard.findIndex(u => u.telegramId === userId) + 1;
-
-  res.json({
-    user,
-    position,
-    totalPlayers: leaderboard.length,
-  });
 });
 
-app.post('/api/rating/add-points', (req, res) => {
-  const { userId, points, reason } = req.body;
-  const user = users.get(userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+app.post('/api/rating/add-points', async (req, res) => {
+  try {
+    const { userId, points, reason } = req.body;
+
+    const result = await pool.query(
+      'UPDATE users SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2 RETURNING *',
+      [points, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: `Added ${points} points (${reason})`,
+      newBalance: result.rows[0].balance,
+    });
+  } catch (err) {
+    console.error('Error adding points:', err);
+    res.status(500).json({ error: 'Failed to add points' });
   }
-
-  user.balance += points;
-  users.set(userId, user);
-
-  res.json({
-    success: true,
-    message: `Added ${points} points (${reason})`,
-    newBalance: user.balance,
-  });
 });
 
 // ===== ROUTES: TOURNAMENTS =====
-app.get('/api/tournaments', (req, res) => {
+app.get('/api/tournaments', async (req, res) => {
   try {
     const status = req.query.status;
-    const allTournaments = Array.from(tournaments.values());
+    let query = 'SELECT * FROM tournaments';
     
     if (status) {
-      return res.json(allTournaments.filter(t => t.status === status));
+      query += ' WHERE status = $1';
+      const result = await pool.query(query, [status]);
+      return res.json(result.rows);
     }
     
-    res.json(allTournaments);
+    const result = await pool.query(query + ' ORDER BY created_at DESC');
+    res.json(result.rows);
   } catch (err) {
     console.error('Error getting tournaments:', err);
     res.status(500).json({ error: 'Failed to get tournaments' });
   }
 });
 
-app.get('/api/tournaments/:tournamentId', (req, res) => {
+app.get('/api/tournaments/:tournamentId', async (req, res) => {
   try {
-    const tournament = tournaments.get(parseInt(req.params.tournamentId));
+    const tournamentId = parseInt(req.params.tournamentId);
+    const result = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
     
-    if (!tournament) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
+    const tournament = result.rows[0];
+
+    // Получить участников
+    const participantsResult = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 ORDER BY joined_at',
+      [tournamentId]
+    );
+
+    tournament.participants = participantsResult.rows;
     res.json(tournament);
   } catch (err) {
     console.error('Error getting tournament:', err);
@@ -673,7 +600,7 @@ app.get('/api/tournaments/:tournamentId', (req, res) => {
   }
 });
 
-app.post('/api/tournaments', (req, res) => {
+app.post('/api/tournaments', async (req, res) => {
   try {
     const { name, description, startDate, endDate, maxParticipants, entryFee, prizePool, createdBy } = req.body;
     
@@ -681,60 +608,62 @@ app.post('/api/tournaments', (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const id = tournamentIdCounter++;
-    const newTournament = {
-      id,
-      name,
-      description: description || '',
-      startDate,
-      endDate,
-      maxParticipants,
-      currentParticipants: 0,
-      entryFee: entryFee || 0,
-      prizePool: prizePool || 0,
-      status: 'pending',
-      createdBy,
-      createdAt: new Date().toISOString(),
-      participants: [],
-    };
+    const result = await pool.query(
+      `INSERT INTO tournaments (name, description, start_date, end_date, max_participants, entry_fee, prize_pool, status, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)
+       RETURNING *`,
+      [name, description || '', startDate, endDate, maxParticipants, entryFee || 0, prizePool || 0, createdBy]
+    );
 
-    tournaments.set(id, newTournament);
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
-    res.json(newTournament);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error creating tournament:', err);
     res.status(500).json({ error: 'Failed to create tournament' });
   }
 });
 
-app.put('/api/tournaments/:tournamentId', (req, res) => {
+app.put('/api/tournaments/:tournamentId', async (req, res) => {
   try {
-    const tournament = tournaments.get(parseInt(req.params.tournamentId));
-    
-    if (!tournament) {
+    const tournamentId = parseInt(req.params.tournamentId);
+    const { name, description, startDate, endDate, maxParticipants, entryFee, prizePool, status } = req.body;
+
+    const result = await pool.query(
+      `UPDATE tournaments 
+       SET name = COALESCE($2, name),
+           description = COALESCE($3, description),
+           start_date = COALESCE($4, start_date),
+           end_date = COALESCE($5, end_date),
+           max_participants = COALESCE($6, max_participants),
+           entry_fee = COALESCE($7, entry_fee),
+           prize_pool = COALESCE($8, prize_pool),
+           status = COALESCE($9, status),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [tournamentId, name, description, startDate, endDate, maxParticipants, entryFee, prizePool, status]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    const updated = { ...tournament, ...req.body };
-    tournaments.set(tournament.id, updated);
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
-    res.json(updated);
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error updating tournament:', err);
     res.status(500).json({ error: 'Failed to update tournament' });
   }
 });
 
-app.delete('/api/tournaments/:tournamentId', (req, res) => {
+app.delete('/api/tournaments/:tournamentId', async (req, res) => {
   try {
-    const id = parseInt(req.params.tournamentId);
+    const tournamentId = parseInt(req.params.tournamentId);
     
-    if (!tournaments.has(id)) {
+    const result = await pool.query('DELETE FROM tournaments WHERE id = $1 RETURNING id', [tournamentId]);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    tournaments.delete(id);
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
     res.json({ success: true, message: 'Tournament deleted' });
   } catch (err) {
     console.error('Error deleting tournament:', err);
@@ -742,46 +671,71 @@ app.delete('/api/tournaments/:tournamentId', (req, res) => {
   }
 });
 
-app.post('/api/tournaments/join', (req, res) => {
+app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
   try {
-    const { userId, tournamentId } = req.body;
-    const tournament = tournaments.get(tournamentId);
-    const user = users.get(userId);
-    
-    if (!tournament || !user) {
-      return res.status(404).json({ error: 'Tournament or user not found' });
+    const tournamentId = parseInt(req.params.tournamentId);
+    const { userId } = req.body;
+
+    // Получить турнир
+    const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    if (tournament.currentParticipants >= tournament.maxParticipants) {
+    const tournament = tournamentResult.rows[0];
+
+    // Получить пользователя
+    const userResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Проверить ограничения
+    if (tournament.current_participants >= tournament.max_participants) {
       return res.status(400).json({ error: 'Tournament is full' });
     }
 
-    if (user.balance < tournament.entryFee) {
+    if (user.balance < tournament.entry_fee) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
     // Проверить, не участвует ли уже
-    if (tournament.participants.find(p => p.userId === userId)) {
+    const existingResult = await pool.query(
+      'SELECT id FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+
+    if (existingResult.rows.length > 0) {
       return res.status(400).json({ error: 'Already joined' });
     }
 
     // Добавить участника
-    tournament.participants.push({
-      userId,
-      username: user.username,
-      joinedAt: new Date().toISOString(),
-      score: 0,
-    });
+    await pool.query(
+      `INSERT INTO tournament_participants (tournament_id, user_id, username, score)
+       VALUES ($1, $2, $3, 0)`,
+      [tournamentId, userId, user.username]
+    );
 
-    tournament.currentParticipants += 1;
-    user.balance -= tournament.entryFee;
+    // Обновить турнир
+    await pool.query(
+      'UPDATE tournaments SET current_participants = current_participants + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [tournamentId]
+    );
 
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    // Вычесть плату за участие
+    await pool.query(
+      'UPDATE users SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
+      [tournament.entry_fee, userId]
+    );
+
+    const updatedTournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
 
     res.json({
       success: true,
       message: 'Joined tournament',
-      tournament,
+      tournament: updatedTournamentResult.rows[0],
     });
   } catch (err) {
     console.error('Error joining tournament:', err);
@@ -789,25 +743,25 @@ app.post('/api/tournaments/join', (req, res) => {
   }
 });
 
-app.post('/api/tournaments/leave', (req, res) => {
+app.post('/api/tournaments/:tournamentId/leave', async (req, res) => {
   try {
-    const { userId, tournamentId } = req.body;
-    const tournament = tournaments.get(tournamentId);
-    const user = users.get(userId);
-    
-    if (!tournament || !user) {
-      return res.status(404).json({ error: 'Tournament or user not found' });
-    }
+    const tournamentId = parseInt(req.params.tournamentId);
+    const { userId } = req.body;
 
-    const index = tournament.participants.findIndex(p => p.userId === userId);
-    if (index === -1) {
+    const participantResult = await pool.query(
+      'DELETE FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2 RETURNING id',
+      [tournamentId, userId]
+    );
+
+    if (participantResult.rows.length === 0) {
       return res.status(400).json({ error: 'Not a participant' });
     }
 
-    tournament.participants.splice(index, 1);
-    tournament.currentParticipants -= 1;
-
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+    // Обновить турнир
+    await pool.query(
+      'UPDATE tournaments SET current_participants = current_participants - 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [tournamentId]
+    );
 
     res.json({
       success: true,
@@ -819,46 +773,57 @@ app.post('/api/tournaments/leave', (req, res) => {
   }
 });
 
-app.post('/api/tournaments/:tournamentId/finish', (req, res) => {
+app.post('/api/tournaments/:tournamentId/finish', async (req, res) => {
   try {
-    const tournament = tournaments.get(parseInt(req.params.tournamentId));
-    
-    if (!tournament) {
+    const tournamentId = parseInt(req.params.tournamentId);
+
+    const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
+    if (tournamentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
+
+    const tournament = tournamentResult.rows[0];
 
     if (tournament.status === 'finished') {
       return res.status(400).json({ error: 'Tournament already finished' });
     }
 
-    tournament.status = 'finished';
+    // Получить участников отсортированных по score
+    const participantsResult = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 ORDER BY score DESC',
+      [tournamentId]
+    );
 
-    // Распределить призы (пример: 50% первому, 30% второму, 20% третьему)
-    const sorted = [...tournament.participants].sort((a, b) => b.score - a.score);
-    
     const prizes = [
-      { position: 1, percentage: 0.5 },
-      { position: 2, percentage: 0.3 },
-      { position: 3, percentage: 0.2 },
+      { position: 0, percentage: 0.5 },
+      { position: 1, percentage: 0.3 },
+      { position: 2, percentage: 0.2 },
     ];
 
-    sorted.forEach((participant, index) => {
-      const prize = prizes.find(p => p.position === index + 1);
-      if (prize) {
-        const prizeAmount = Math.floor(tournament.prizePool * prize.percentage);
-        const user = users.get(participant.userId);
-        if (user) {
-          user.balance += prizeAmount;
-        }
-      }
-    });
+    // Распределить призы
+    for (let index = 0; index < participantsResult.rows.length; index++) {
+      const participant = participantsResult.rows[index];
+      const prize = prizes.find(p => p.position === index);
 
-    saveTournaments(tournaments);  // 💾 Сохраняем в файл
+      if (prize) {
+        const prizeAmount = Math.floor(tournament.prize_pool * prize.percentage);
+        await pool.query(
+          'UPDATE users SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
+          [prizeAmount, participant.user_id]
+        );
+      }
+    }
+
+    // Обновить статус турнира
+    const updatedResult = await pool.query(
+      'UPDATE tournaments SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      ['finished', tournamentId]
+    );
 
     res.json({
       success: true,
       message: 'Tournament finished and prizes distributed',
-      tournament,
+      tournament: updatedResult.rows[0],
     });
   } catch (err) {
     console.error('Error finishing tournament:', err);
@@ -866,21 +831,27 @@ app.post('/api/tournaments/:tournamentId/finish', (req, res) => {
   }
 });
 
-app.get('/api/tournaments/:tournamentId/results', (req, res) => {
+app.get('/api/tournaments/:tournamentId/results', async (req, res) => {
   try {
-    const tournament = tournaments.get(parseInt(req.params.tournamentId));
-    
-    if (!tournament) {
+    const tournamentId = parseInt(req.params.tournamentId);
+
+    const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
+    if (tournamentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    const results = tournament.participants
-      .sort((a, b) => b.score - a.score)
-      .map((p, index) => ({
-        ...p,
-        position: index + 1,
-        prize: calculatePrize(tournament.prizePool, index),
-      }));
+    const tournament = tournamentResult.rows[0];
+
+    const participantsResult = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 ORDER BY score DESC',
+      [tournamentId]
+    );
+
+    const results = participantsResult.rows.map((p, index) => ({
+      ...p,
+      position: index + 1,
+      prize: calculatePrize(tournament.prize_pool, index),
+    }));
 
     res.json(results);
   } catch (err) {
@@ -897,14 +868,19 @@ function calculatePrize(prizePool, position) {
   return 0;
 }
 
-app.get('/api/users/:userId/tournaments', (req, res) => {
+app.get('/api/users/:userId/tournaments', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const userTournaments = Array.from(tournaments.values()).filter(t =>
-      t.participants.some(p => p.userId === userId)
+
+    const result = await pool.query(
+      `SELECT DISTINCT t.* FROM tournaments t
+       INNER JOIN tournament_participants tp ON t.id = tp.tournament_id
+       WHERE tp.user_id = $1
+       ORDER BY t.created_at DESC`,
+      [userId]
     );
 
-    res.json(userTournaments);
+    res.json(result.rows);
   } catch (err) {
     console.error('Error getting user tournaments:', err);
     res.status(500).json({ error: 'Failed to get user tournaments' });
@@ -920,11 +896,19 @@ app.get('/api/achievements', (req, res) => {
   ]);
 });
 
-app.get('/api/achievements/user/:userId', (req, res) => {
-  const userId = parseInt(req.params.userId);
-  res.json([
-    { id: 1, unlocked: true, unlockedAt: new Date() },
-  ]);
+app.get('/api/achievements/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const result = await pool.query(
+      'SELECT * FROM user_achievements WHERE user_id = $1 ORDER BY unlocked_at DESC',
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching user achievements:', err);
+    res.status(500).json({ error: 'Failed to fetch achievements' });
+  }
 });
 
 // ===== TELEGRAM BOT WEBHOOK =====
@@ -934,32 +918,31 @@ app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
 });
 
 // ===== BOT HANDLERS =====
-bot.onText(/\/start/, (msg) => {
-  const userId = msg.from.id;
-  const username = msg.from.username || 'User';
-  
-  // Создать или получить пользователя
-  if (!users.has(userId)) {
-    users.set(userId, {
-      telegramId: userId,
-      username,
-      firstName: msg.from.first_name,
-      balance: 1000,
-      stars: 0,
-      level: 1,
-      experience: 0,
-      wins: 0,
-      losses: 0,
-    });
-  }
+bot.onText(/\/start/, async (msg) => {
+  try {
+    const userId = msg.from.id;
+    const username = msg.from.username || 'User';
+    
+    // Создать или получить пользователя
+    const existingResult = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [userId]);
+    
+    if (existingResult.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO users (telegram_id, username, first_name) VALUES ($1, $2, $3)',
+        [userId, username, msg.from.first_name]
+      );
+    }
 
-  bot.sendMessage(msg.chat.id, 
-    `🎮 Добро пожаловать в Gaming Arena!\n\n` +
-    `👤 Профиль: ${username}\n` +
-    `💰 Баланс: 1000 монет\n` +
-    `⭐ Звезды: 0\n\n` +
-    `Открыть приложение: ${process.env.MINI_APP_URL}`
-  );
+    bot.sendMessage(msg.chat.id, 
+      `🎮 Добро пожаловать в Gaming Arena!\n\n` +
+      `👤 Профиль: ${username}\n` +
+      `💰 Баланс: 1000 монет\n` +
+      `⭐ Звезды: 0\n\n` +
+      `Открыть приложение: ${process.env.MINI_APP_URL}`
+    );
+  } catch (err) {
+    console.error('Error in /start handler:', err);
+  }
 });
 
 // Health check
