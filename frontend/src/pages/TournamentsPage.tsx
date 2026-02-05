@@ -143,25 +143,25 @@ export function TournamentsPage() {
                 <div className="info-row">
                   <span>👥 Участники:</span>
                   <span className="info-value">
-                    {tournament.currentParticipants}/{tournament.maxParticipants}
+                    {tournament.currentParticipants || 0}/{tournament.maxParticipants || 0}
                   </span>
                 </div>
                 <div className="info-row">
                   <span>💰 Вход:</span>
-                  <span className="info-value">{tournament.entryFee}</span>
+                  <span className="info-value">{tournament.entryFee || 0}</span>
                 </div>
                 <div className="info-row">
                   <span>🎁 Призовой:</span>
-                  <span className="info-value prize">{tournament.prizePool}</span>
+                  <span className="info-value prize">{tournament.prizePool || 0}</span>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  📅 {new Date(tournament.startDate).toLocaleDateString('ru-RU')}
+                  📅 {tournament.startDate ? new Date(tournament.startDate).toLocaleDateString('ru-RU') : 'N/A'}
                 </div>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  🏁 {new Date(tournament.endDate).toLocaleDateString('ru-RU')}
+                  🏁 {tournament.endDate ? new Date(tournament.endDate).toLocaleDateString('ru-RU') : 'N/A'}
                 </div>
               </div>
 
