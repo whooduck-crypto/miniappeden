@@ -253,7 +253,12 @@ export function ProfilePage() {
               <input
                 type="text"
                 value={gameId}
-                onChange={(e) => setGameId(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d+$/.test(value)) {
+                    setGameId(value);
+                  }
+                }}
                 placeholder="Введите Game ID"
                 style={{
                   width: '100%',
@@ -274,7 +279,12 @@ export function ProfilePage() {
               <input
                 type="text"
                 value={serverId}
-                onChange={(e) => setServerId(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d+$/.test(value)) {
+                    setServerId(value);
+                  }
+                }}
                 placeholder="Введите Server ID"
                 style={{
                   width: '100%',
@@ -293,6 +303,30 @@ export function ProfilePage() {
                 try {
                   setIsSaving(true);
                   
+                  // Проверяем, есть ли активные регистрации в турнирах
+                  const activeTournamentsResponse = await fetch(
+                    `https://web-production-b6f80.up.railway.app/api/users/${userId}/active-tournaments`
+                  );
+                  const activeTournamentsData = await activeTournamentsResponse.json();
+                  
+                  if (activeTournamentsData.hasActiveTournaments && 
+                      (userData?.gameId !== gameId || userData?.serverId !== serverId)) {
+                    const tournamentsList = activeTournamentsData.tournaments
+                      .map((t: any) => `• ${t.tournamentName} (${t.status})`)
+                      .join('\n');
+                    
+                    const shouldCancel = confirm(
+                      `⚠️ У вас есть активные регистрации в турнирах:\n\n${tournamentsList}\n\n` +
+                      `Вы не можете изменить game_id и server_id пока вы зарегистрированы в активных турнирах.\n\n` +
+                      `Отмените регистрацию перед изменением данных.`
+                    );
+                    
+                    if (shouldCancel) {
+                      setIsSaving(false);
+                      return;
+                    }
+                  }
+                  
                   // Сохраняем в localStorage
                   localStorage.setItem(`gameId_${userId}`, gameId);
                   localStorage.setItem(`serverId_${userId}`, serverId);
@@ -303,8 +337,10 @@ export function ProfilePage() {
                   setUserData({ ...userData, gameId, serverId });
                   setIsEditing(false);
                   console.log('✅ Данные сохранены на сервере');
+                  alert('✅ Game ID и Server ID успешно обновлены!');
                 } catch (err) {
                   console.error('❌ Ошибка при сохранении:', err);
+                  alert('❌ Ошибка при сохранении данных');
                 } finally {
                   setIsSaving(false);
                 }

@@ -90,6 +90,37 @@ app.post('/api/migrate/add-role-column', async (req, res) => {
 });
 
 // ===== ROUTES: USERS =====
+
+// Проверить, есть ли активные регистрации в турнирах
+app.get('/api/users/:userId/active-tournaments', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    // Получаем активные турниры, где пользователь зарегистрирован
+    const result = await pool.query(
+      `SELECT tp.*, t.name, t.status
+       FROM tournament_participants tp
+       JOIN tournaments t ON tp.tournament_id = t.id
+       WHERE tp.user_id = $1 AND t.status IN ('pending', 'active')`,
+      [userId]
+    );
+
+    res.json({
+      hasActiveTournaments: result.rows.length > 0,
+      count: result.rows.length,
+      tournaments: result.rows.map(row => ({
+        tournamentId: row.tournament_id,
+        tournamentName: row.name,
+        status: row.status,
+        role: row.role,
+      })),
+    });
+  } catch (err) {
+    console.error('Error checking active tournaments:', err);
+    res.status(500).json({ error: 'Failed to check active tournaments' });
+  }
+});
+
 app.post('/api/users', async (req, res) => {
   try {
     const { telegramId, username, firstName } = req.body;
@@ -861,6 +892,17 @@ app.post('/api/tournaments/:tournamentId/leave', async (req, res) => {
     const tournamentId = parseInt(req.params.tournamentId);
     const { userId } = req.body;
 
+    console.log('🚪 Leave Tournament Request:', { tournamentId, userId });
+
+    // Получить турнир для узнания entry_fee
+    const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+
+    // Удалить участника
     const participantResult = await pool.query(
       'DELETE FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2 RETURNING id',
       [tournamentId, userId]
@@ -870,18 +912,29 @@ app.post('/api/tournaments/:tournamentId/leave', async (req, res) => {
       return res.status(400).json({ error: 'Not a participant' });
     }
 
-    // Обновить турнир
+    console.log('✅ Participant removed');
+
+    // Обновить турнир (уменьшить количество участников)
     await pool.query(
       'UPDATE tournaments SET current_participants = current_participants - 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [tournamentId]
     );
 
+    // Вернуть деньги пользователю (вернуть entry_fee)
+    await pool.query(
+      'UPDATE users SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
+      [tournament.entry_fee, userId]
+    );
+
+    console.log('💰 Refunded', tournament.entry_fee, 'coins to user', userId);
+
     res.json({
       success: true,
       message: 'Left tournament',
+      refundedAmount: tournament.entry_fee,
     });
   } catch (err) {
-    console.error('Error leaving tournament:', err);
+    console.error('❌ Error leaving tournament:', err);
     res.status(500).json({ error: 'Failed to leave tournament' });
   }
 });

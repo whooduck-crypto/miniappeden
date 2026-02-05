@@ -379,18 +379,78 @@ export function TournamentDetailPage() {
       )}
 
       {isUserJoined && (
-        <div style={{
-          background: 'rgba(76, 175, 80, 0.1)',
-          border: '2px solid #4caf50',
-          padding: '15px',
-          borderRadius: '8px',
-          textAlign: 'center',
-          marginBottom: '25px',
-          color: '#4caf50',
-          fontSize: '16px',
-          fontWeight: 'bold',
-        }}>
-          ✅ Вы уже присоединились к этому турниру!
+        <div>
+          <div style={{
+            background: 'rgba(76, 175, 80, 0.1)',
+            border: '2px solid #4caf50',
+            padding: '15px',
+            borderRadius: '8px',
+            textAlign: 'center',
+            marginBottom: '15px',
+            color: '#4caf50',
+            fontSize: '16px',
+            fontWeight: 'bold',
+          }}>
+            ✅ Вы уже присоединились к этому турниру!
+          </div>
+          
+          <button
+            onClick={async () => {
+              if (!window.confirm('Вы уверены, что хотите отменить регистрацию?\nВам будут возвращены монеты')) {
+                return;
+              }
+              
+              try {
+                setJoining(true);
+                const response = await fetch(
+                  `https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}/leave`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId }),
+                  }
+                );
+
+                if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || 'Failed to leave tournament');
+                }
+
+                const data = await response.json();
+                alert(`✅ Вы отменили регистрацию! Вам возвращено ${data.refundedAmount} монет`);
+                
+                // Обновляем данные турнира
+                const updatedResponse = await fetch(
+                  `https://web-production-b6f80.up.railway.app/api/tournaments/${tournament.id}`
+                );
+                const updatedTournament = await updatedResponse.json();
+                setTournament(updatedTournament);
+              } catch (err) {
+                console.error('Error leaving tournament:', err);
+                alert(`❌ ${err instanceof Error ? err.message : 'Ошибка при отмене регистрации'}`);
+              } finally {
+                setJoining(false);
+              }
+            }}
+            disabled={joining}
+            className="btn"
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: '#ff9800',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: joining ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              opacity: joining ? 0.7 : 1,
+              marginBottom: '25px',
+            }}
+          >
+            {joining ? '⏳ Отмена регистрации...' : '❌ Отменить регистрацию'}
+          </button>
         </div>
       )}
 
