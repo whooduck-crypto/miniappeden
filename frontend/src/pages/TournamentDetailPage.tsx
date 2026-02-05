@@ -32,15 +32,22 @@ export function TournamentDetailPage() {
   const user = getTelegramUserInfo()
   const userId = user?.id
 
+  console.log('🎫 TournamentDetailPage - User info:', { userId, username: user?.username })
+
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showRoleSelection, setShowRoleSelection] = useState(false)
   const [selectedRole, setSelectedRole] = useState<ParticipantRole | null>(null)
   const [joining, setJoining] = useState(false)
+  const [canceling, setCanceling] = useState(false)
 
-  // Проверяем, уже ли пользователь присоединился
-  const isUserJoined = tournament?.participants.some((p: any) => p.userId === userId)
+  // Проверяем, уже ли пользователь присоединился (должно пересчитываться при изменении tournament)
+  const isUserJoined = tournament?.participants?.some((p: any) => p.userId === userId) || false
+
+  useEffect(() => {
+    console.log('🔍 Tournament updated:', { tournament: tournament?.id, participants: tournament?.participants?.length, userId, isUserJoined })
+  }, [tournament, userId, isUserJoined])
 
   useEffect(() => {
     const fetchTournament = async () => {
@@ -117,6 +124,8 @@ export function TournamentDetailPage() {
       // Обновляем данные турнира
       const updatedResponse = await fetch(api.tournaments.detail(tournament.id))
       const updatedTournament = await updatedResponse.json()
+      console.log('📊 Updated tournament participants:', updatedTournament.participants)
+      console.log('🔎 Checking if user joined:', { userId, participants: updatedTournament.participants.map((p: any) => ({ userId: p.userId, username: p.username })) })
       setTournament(updatedTournament)
       
       setShowRoleSelection(false)
