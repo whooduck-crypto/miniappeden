@@ -1036,7 +1036,7 @@ app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
 
     // Подготовить массив для каждой роли (lowercase для правильности)
     const roles = ['roamer', 'holder', 'expert', 'lesnik', 'mider'];
-    const participantsByRole: { [key: string]: any[] } = {};
+    const participantsByRole = {};
 
     roles.forEach(role => {
       participantsByRole[role] = participants.filter(p => p.role && p.role.toLowerCase() === role);
