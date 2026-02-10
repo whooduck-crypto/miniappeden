@@ -1033,6 +1033,11 @@ app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
 
     const participants = participantsResult.rows;
     console.log(`📊 Found ${participants.length} participants`);
+    console.log('Participants details:', participants.map(p => ({
+      username: p.username,
+      userId: p.user_id,
+      role: p.role || 'NO_ROLE'
+    })));
 
     // Подготовить массив для каждой роли (lowercase для правильности)
     const roles = ['roamer', 'holder', 'expert', 'lesnik', 'mider'];
@@ -1047,8 +1052,13 @@ app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
     const requiredPerTeam = numTeams;
     for (const role of roles) {
       if (participantsByRole[role].length < requiredPerTeam) {
+        const details = participants
+          .filter(p => !p.role || p.role.toLowerCase() === role)
+          .map(p => `${p.username}(${p.role || 'none'})`)
+          .join(', ');
         return res.status(400).json({ 
-          error: `Not enough ${role}s. Need ${requiredPerTeam}, have ${participantsByRole[role].length}` 
+          error: `Not enough ${role}s. Need ${requiredPerTeam}, have ${participantsByRole[role].length}`,
+          details: `Participants with ${role} role: ${details}`
         });
       }
     }
