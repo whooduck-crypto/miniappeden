@@ -1,63 +1,35 @@
 import '../App.css'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
+import type { Tournament } from '../types/tournaments'
 
 export function TournamentsPage() {
   const user = getTelegramUserInfo()
   const userId = user?.id
+  const navigate = useNavigate()
 
-  const { tournaments, loading, error, fetchTournaments, joinTournament } = useTournamentManagement()
+  const { tournaments, loading, error, fetchTournaments } = useTournamentManagement()
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
-  const [joining, setJoining] = useState<number | null>(null)
-  const previousTournamentsRef = useRef<typeof tournaments>(null)
 
-  // Загружаем турниры при монтировании
   useEffect(() => {
     fetchTournaments()
   }, [])
 
-  // Периодически обновляем список турниров (каждые 30 секунд)
-  // Увеличенный интервал предотвращает частые перезагрузки
   useEffect(() => {
     const interval = setInterval(() => {
       fetchTournaments()
-    }, 30000) // Изменено с 5000 на 30000 миллисекунд
+    }, 30000)
 
     return () => clearInterval(interval)
   }, [])
-
-  // Сравниваем турниры и предотвращаем лишние перерисовки
-  useEffect(() => {
-    if (JSON.stringify(previousTournamentsRef.current) !== JSON.stringify(tournaments)) {
-      previousTournamentsRef.current = tournaments
-    }
-  }, [tournaments])
 
   const filtered = tournaments.filter(t => {
     if (filter === 'active') return t.status === 'active'
     if (filter === 'upcoming') return t.status === 'pending'
     return true
   })
-
-  const handleJoin = async (tournamentId: number) => {
-    if (!userId) {
-      alert('❌ Требуется авторизация в Telegram')
-      return
-    }
-
-    setJoining(tournamentId)
-    try {
-      await joinTournament(userId, tournamentId)
-      alert('✅ Вы успешно присоединились к турниру!')
-      // Перезагружаем турниры после присоединения
-      await fetchTournaments()
-    } catch (err) {
-      alert(`❌ Ошибка: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setJoining(null)
-    }
-  }
 
   const getStatusBadge = (status: string) => {
     if (status === 'active') return '🔴 Активный'
@@ -69,6 +41,10 @@ export function TournamentsPage() {
     if (status === 'active') return 'active'
     if (status === 'pending') return 'upcoming'
     return 'finished'
+  }
+
+  const handleTournamentClick = (tournamentId: number) => {
+    navigate(`/tournament/${tournamentId}`)
   }
 
   return (
@@ -125,70 +101,53 @@ export function TournamentsPage() {
           Нет турниров в этой категории 😕
         </div>
       ) : (
-        <div className="tournaments-list">
+        <div className="tournaments-grid">
           {filtered.map((tournament) => (
-            <div key={tournament.id} className="tournament-item">
-              <div className="tournament-left">
+            <div
+              key={tournament.id}
+              className="tournament-card"
+              onClick={() => handleTournamentClick(tournament.id)}
+            >
+              <div className="tournament-card-header">
                 <h3>{tournament.name}</h3>
                 <span className={`badge ${getStatusClass(tournament.status)}`}>
                   {getStatusBadge(tournament.status)}
                 </span>
               </div>
 
-              <p style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.8 }}>
-                {tournament.description}
-              </p>
+              <p className="tournament-description">{tournament.description}</p>
 
-              <div className="tournament-info">
-                <div className="info-row">
-                  <span>👥 Участники:</span>
-                  <span className="info-value">
+              <div className="tournament-stats">
+                <div className="stat">
+                  <div className="stat-label">Участники</div>
+                  <div className="stat-value">
                     {tournament.currentParticipants}/{tournament.maxParticipants}
-                  </span>
+                  </div>
                 </div>
-                <div className="info-row">
-                  <span>💰 Вход:</span>
-                  <span className="info-value">{tournament.entryFee}</span>
+                <div className="stat">
+                  <div className="stat-label">Вход</div>
+                  <div className="stat-value">💰 {tournament.entryFee}</div>
                 </div>
-                <div className="info-row">
-                  <span>🎁 Призовой:</span>
-                  <span className="info-value prize">{tournament.prizePool}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  📅 {new Date(tournament.startDate).toLocaleDateString('ru-RU')}
-                </div>
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  🏁 {new Date(tournament.endDate).toLocaleDateString('ru-RU')}
+                <div className="stat">
+                  <div className="stat-label">Призовой</div>
+                  <div className="stat-value prize">🎁 {tournament.prizePool}</div>
                 </div>
               </div>
 
-              <button
-                onClick={() => handleJoin(tournament.id)}
-                disabled={
-                  joining === tournament.id ||
-                  tournament.status === 'finished' ||
-                  tournament.currentParticipants >= tournament.maxParticipants
-                }
-                className={`btn ${
-                  tournament.status === 'finished'
-                    ? 'btn-disabled'
-                    : tournament.currentParticipants >= tournament.maxParticipants
-                    ? 'btn-disabled'
-                    : 'btn-primary'
-                }`}
-                style={{ width: '100%', marginTop: '12px' }}
-              >
-                {joining === tournament.id
-                  ? '⏳ Присоединение...'
-                  : tournament.status === 'finished'
-                  ? '✅ Завершен'
-                  : tournament.currentParticipants >= tournament.maxParticipants
-                  ? '❌ Турнир полный'
-                  : '➕ Присоединиться'}
-              </button>
+              <div className="tournament-dates">
+                <div className="date">
+                  <span className="date-label">Начало:</span>
+                  <span>{new Date(tournament.startDate).toLocaleDateString('ru-RU')}</span>
+                </div>
+                <div className="date">
+                  <span className="date-label">Конец:</span>
+                  <span>{new Date(tournament.endDate).toLocaleDateString('ru-RU')}</span>
+                </div>
+              </div>
+
+              <div className="tournament-footer">
+                <span className="view-details">Подробнее →</span>
+              </div>
             </div>
           ))}
         </div>
