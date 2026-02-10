@@ -1081,7 +1081,7 @@ app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
     // Сформировать команды
     const teams = [];
     for (let teamIndex = 0; teamIndex < numTeams; teamIndex++) {
-      const teamMemberIds: number[] = [];
+      const teamMemberIds = [];
 
       // Для каждой роли выбрать одного участника
       for (const role of roles) {
@@ -1104,7 +1104,7 @@ app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
     }
 
     // Сохранить команды в БД
-    const teamIds: number[] = [];
+    const teamIds = [];
     for (let i = 0; i < teams.length; i++) {
       const teamResult = await pool.query(
         'INSERT INTO tournament_teams (tournament_id, team_name) VALUES ($1, $2) RETURNING id',
