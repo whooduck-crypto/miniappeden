@@ -1,9 +1,5 @@
 import '../App.css'
-<<<<<<< HEAD
 import { useState, useEffect } from 'react'
-=======
-import { useState, useEffect, useRef } from 'react'
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 import { useNavigate } from 'react-router-dom'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
@@ -39,14 +35,9 @@ export function TournamentsPage() {
   const navigate = useNavigate()
   const user = getTelegramUserInfo()
   const userId = user?.id
-  const navigate = useNavigate()
 
   const { tournaments, loading, error, fetchTournaments } = useTournamentManagement()
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
-<<<<<<< HEAD
-=======
-  const previousTournamentsRef = useRef<typeof tournaments>(null)
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 
   useEffect(() => {
     fetchTournaments()
@@ -65,35 +56,6 @@ export function TournamentsPage() {
     if (filter === 'upcoming') return t.status === 'pending'
     return true
   })
-
-<<<<<<< HEAD
-=======
-  const handleJoin = (tournamentId: number) => {
-    if (!userId) {
-      alert('❌ Требуется авторизация в Telegram')
-      return
-    }
-
-    // Открываем страницу деталей турнира
-    navigate(`/tournament/${tournamentId}`)
-  }
-
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
-  const getStatusBadge = (status: string) => {
-    if (status === 'active') return '🔴 Активный'
-    if (status === 'pending') return '⏰ Ожидание'
-    return '✅ Завершен'
-  }
-
-  const getStatusClass = (status: string) => {
-    if (status === 'active') return 'active'
-    if (status === 'pending') return 'upcoming'
-    return 'finished'
-  }
-
-  const handleTournamentClick = (tournamentId: number) => {
-    navigate(`/tournament/${tournamentId}`)
-  }
 
   return (
     <div className="page tournaments-page">
@@ -165,7 +127,6 @@ export function TournamentsPage() {
 
               <p className="tournament-description">{tournament.description}</p>
 
-<<<<<<< HEAD
               <div className="tournament-stats">
                 <div className="stat">
                   <div className="stat-label">Участники</div>
@@ -186,59 +147,17 @@ export function TournamentsPage() {
               <div className="tournament-dates">
                 <div className="date">
                   <span className="date-label">Начало:</span>
-                  <span>{new Date(tournament.startDate).toLocaleDateString('ru-RU')}</span>
+                  <span>{formatDate(tournament.startDate)}</span>
                 </div>
                 <div className="date">
                   <span className="date-label">Конец:</span>
-                  <span>{new Date(tournament.endDate).toLocaleDateString('ru-RU')}</span>
+                  <span>{formatDate(tournament.endDate)}</span>
                 </div>
               </div>
 
               <div className="tournament-footer">
                 <span className="view-details">Подробнее →</span>
               </div>
-=======
-              <div className="tournament-info">
-                <div className="info-row">
-                  <span>👥 Участники:</span>
-                  <span className="info-value">
-                    {tournament.currentParticipants || 0}/{tournament.maxParticipants || 0}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span>💰 Вход:</span>
-                  <span className="info-value">{tournament.entryFee || 0}</span>
-                </div>
-                <div className="info-row">
-                  <span>🎁 Призовой:</span>
-                  <span className="info-value prize">{tournament.prizePool || 0}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  📅 {tournament.startDate ? formatDate(tournament.startDate) : 'N/A'}
-                </div>
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                  🏁 {tournament.endDate ? formatDate(tournament.endDate) : 'N/A'}
-                </div>
-              </div>
-
-              <button
-                onClick={() => handleJoin(tournament.id)}
-                disabled={tournament.status === 'finished'}
-                className={`btn ${
-                  tournament.status === 'finished'
-                    ? 'btn-disabled'
-                    : 'btn-primary'
-                }`}
-                style={{ width: '100%', marginTop: '12px' }}
-              >
-                {tournament.status === 'finished'
-                  ? '✅ Завершен'
-                  : '➕ Подробнее / Присоединиться'}
-              </button>
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
             </div>
           ))}
         </div>

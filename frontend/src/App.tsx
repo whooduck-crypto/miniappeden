@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react'
-<<<<<<< HEAD
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-=======
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 import { Navigation } from './components/Navigation'
 import { DebugPanel } from './components/DebugPanel'
 import { HomePage } from './pages/HomePage'
@@ -19,10 +15,6 @@ import { userAPI } from './services/api'
 import './App.css'
 
 function AppContent() {
-<<<<<<< HEAD
-  const [currentPage, setCurrentPage] = useState('home')
-=======
->>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
   const [debugInfo, setDebugInfo] = useState<any>(null)
   const location = useLocation()
 
