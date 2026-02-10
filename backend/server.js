@@ -1004,6 +1004,185 @@ app.post('/api/tournaments/:tournamentId/finish', async (req, res) => {
   }
 });
 
+// Сформировать команды для турнира
+app.post('/api/tournaments/:tournamentId/form-teams', async (req, res) => {
+  try {
+    const tournamentId = parseInt(req.params.tournamentId);
+    const { numTeams } = req.body;
+
+    console.log('👥 Form Teams Request:', { tournamentId, numTeams });
+
+    // Валидация
+    if (!numTeams || numTeams <= 0) {
+      return res.status(400).json({ error: 'Invalid number of teams' });
+    }
+
+    // Получить турнир
+    const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+
+    // Получить участников с их ролями
+    const participantsResult = await pool.query(
+      'SELECT tp.*, u.username FROM tournament_participants tp JOIN users u ON tp.user_id = u.telegram_id WHERE tp.tournament_id = $1',
+      [tournamentId]
+    );
+
+    const participants = participantsResult.rows;
+    console.log(`📊 Found ${participants.length} participants`);
+
+    // Подготовить массив для каждой роли (lowercase для правильности)
+    const roles = ['roamer', 'holder', 'expert', 'lesnik', 'mider'];
+    const participantsByRole: { [key: string]: any[] } = {};
+
+    roles.forEach(role => {
+      participantsByRole[role] = participants.filter(p => p.role && p.role.toLowerCase() === role);
+      console.log(`  ${role}: ${participantsByRole[role].length} participants`);
+    });
+
+    // Проверить, достаточно ли участников каждой роли
+    const requiredPerTeam = numTeams;
+    for (const role of roles) {
+      if (participantsByRole[role].length < requiredPerTeam) {
+        return res.status(400).json({ 
+          error: `Not enough ${role}s. Need ${requiredPerTeam}, have ${participantsByRole[role].length}` 
+        });
+      }
+    }
+
+    // Создать таблицу teams если её нет
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tournament_teams (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id),
+        team_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Создать таблицу team_members если её нет
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS team_members (
+        id SERIAL PRIMARY KEY,
+        team_id INTEGER NOT NULL REFERENCES tournament_teams(id),
+        user_id INTEGER NOT NULL,
+        role VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Очистить старые команды для этого турнира
+    await pool.query('DELETE FROM tournament_teams WHERE tournament_id = $1', [tournamentId]);
+
+    // Сформировать команды
+    const teams = [];
+    for (let teamIndex = 0; teamIndex < numTeams; teamIndex++) {
+      const teamMemberIds: number[] = [];
+
+      // Для каждой роли выбрать одного участника
+      for (const role of roles) {
+        const availableUsers = participantsByRole[role].filter(
+          p => !teamMemberIds.includes(p.user_id)
+        );
+
+        if (availableUsers.length === 0) {
+          return res.status(400).json({ 
+            error: `Could not form team ${teamIndex + 1}: ran out of ${role}s` 
+          });
+        }
+
+        // Выбрать случайного участника
+        const selectedUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
+        teamMemberIds.push(selectedUser.user_id);
+      }
+
+      teams.push(teamMemberIds);
+    }
+
+    // Сохранить команды в БД
+    const teamIds: number[] = [];
+    for (let i = 0; i < teams.length; i++) {
+      const teamResult = await pool.query(
+        'INSERT INTO tournament_teams (tournament_id, team_name) VALUES ($1, $2) RETURNING id',
+        [tournamentId, `Team ${i + 1}`]
+      );
+      const teamId = teamResult.rows[0].id;
+      teamIds.push(teamId);
+
+      // Добавить членов команды
+      for (let j = 0; j < teams[i].length; j++) {
+        const userId = teams[i][j];
+        const participant = participants.find(p => p.user_id === userId);
+        const role = participant?.role || roles[j];
+
+        await pool.query(
+          'INSERT INTO team_members (team_id, user_id, role) VALUES ($1, $2, $3)',
+          [teamId, userId, role]
+        );
+      }
+    }
+
+    console.log(`✅ Successfully formed ${numTeams} teams`);
+
+    res.json({
+      success: true,
+      message: `Successfully formed ${numTeams} teams`,
+      teamsCount: numTeams,
+      teamIds,
+    });
+  } catch (err) {
+    console.error('❌ Error forming teams:', err);
+    res.status(500).json({ error: 'Failed to form teams', details: err.message });
+  }
+});
+
+// Получить сформированные команды для турнира
+app.get('/api/tournaments/:tournamentId/teams', async (req, res) => {
+  try {
+    const tournamentId = parseInt(req.params.tournamentId);
+
+    // Получить все команды для турнира
+    const teamsResult = await pool.query(
+      'SELECT * FROM tournament_teams WHERE tournament_id = $1 ORDER BY id',
+      [tournamentId]
+    );
+
+    const teams = [];
+    for (const team of teamsResult.rows) {
+      const membersResult = await pool.query(
+        `SELECT tm.*, u.username FROM team_members tm 
+         JOIN users u ON tm.user_id = u.telegram_id 
+         WHERE tm.team_id = $1 
+         ORDER BY tm.role`,
+        [team.id]
+      );
+
+      teams.push({
+        id: team.id,
+        name: team.team_name,
+        members: membersResult.rows.map(m => ({
+          userId: m.user_id,
+          username: m.username,
+          role: m.role,
+        })),
+      });
+    }
+
+    res.json({
+      success: true,
+      teamsCount: teams.length,
+      teams,
+    });
+  } catch (err) {
+    console.error('Error retrieving teams:', err);
+    res.status(500).json({ error: 'Failed to retrieve teams' });
+  }
+});
+
 app.get('/api/tournaments/:tournamentId/results', async (req, res) => {
   try {
     const tournamentId = parseInt(req.params.tournamentId);

@@ -74,6 +74,14 @@ export function AdminPage() {
   const [starsSuccess, setStarsSuccess] = useState<string | null>(null)
   const [starsError, setStarsError] = useState<string | null>(null)
 
+  // ===== ФОРМИРОВАНИЕ КОМАНД =====
+  const [showTeamFormModal, setShowTeamFormModal] = useState(false)
+  const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null)
+  const [numTeams, setNumTeams] = useState<number>(1)
+  const [formingTeams, setFormingTeams] = useState(false)
+  const [teamFormSuccess, setTeamFormSuccess] = useState<string | null>(null)
+  const [teamFormError, setTeamFormError] = useState<string | null>(null)
+
   useEffect(() => {
     if (hasAccess) {
       fetchTournaments()
@@ -139,6 +147,63 @@ export function AdminPage() {
       } catch (err) {
         console.error('Failed to finish tournament:', err)
       }
+    }
+  }
+
+  const handleOpenTeamForm = (tournamentId: number) => {
+    setSelectedTournamentId(tournamentId)
+    setNumTeams(1)
+    setTeamFormError(null)
+    setTeamFormSuccess(null)
+    setShowTeamFormModal(true)
+  }
+
+  const handleFormTeams = async () => {
+    if (!selectedTournamentId) return
+
+    if (numTeams <= 0) {
+      setTeamFormError('❌ Введите корректное количество команд')
+      return
+    }
+
+    const tournament = tournaments.find(t => t.id === selectedTournamentId)
+    if (!tournament) {
+      setTeamFormError('❌ Турнир не найден')
+      return
+    }
+
+    // Проверяем достаточное количество участников
+    const requiredParticipants = numTeams * 5 // 5 ролей в команде
+    if (tournament.currentParticipants < requiredParticipants) {
+      setTeamFormError(`❌ Недостаточно участников. Нужно минимум ${requiredParticipants}, а есть ${tournament.currentParticipants}`)
+      return
+    }
+
+    setFormingTeams(true)
+    try {
+      const response = await fetch(`/api/tournaments/${selectedTournamentId}/form-teams`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ numTeams }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Ошибка формирования команд')
+      }
+
+      const result = await response.json()
+      setTeamFormSuccess(`✅ ${numTeams} команд успешно сформированы!`)
+      setShowTeamFormModal(false)
+      
+      // Обновляем турниры
+      await fetchTournaments()
+    } catch (err) {
+      setTeamFormError(`❌ Ошибка: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`)
+    } finally {
+      setFormingTeams(false)
     }
   }
 
@@ -597,9 +662,25 @@ export function AdminPage() {
 
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
                       gap: '10px',
                     }}>
+                      <button
+                        onClick={() => handleOpenTeamForm(tournament.id)}
+                        disabled={tournament.status === 'finished' || tournament.currentParticipants < 5}
+                        className="btn btn-primary"
+                        style={{
+                          fontSize: '12px',
+                          padding: '8px',
+                          opacity: tournament.status === 'finished' || tournament.currentParticipants < 5 ? 0.5 : 1,
+                          cursor: tournament.status === 'finished' || tournament.currentParticipants < 5 ? 'not-allowed' : 'pointer',
+                          background: 'rgba(76, 175, 80, 0.3)',
+                          borderColor: '#51cf66',
+                          color: '#51cf66',
+                        }}
+                      >
+                        👥 Команды
+                      </button>
                       <button
                         onClick={() => handleFinishTournament(tournament.id)}
                         disabled={tournament.status === 'finished'}
@@ -678,6 +759,138 @@ export function AdminPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ===== МОДАЛЬНОЕ ОКНО ФОРМИРОВАНИЯ КОМАНД ===== */}
+      {showTeamFormModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#1a1a2e',
+            border: '2px solid #00d4ff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 0 20px rgba(0, 212, 255, 0.3)',
+          }}>
+            <h2 style={{ color: '#00d4ff', marginBottom: '20px', marginTop: 0, textAlign: 'center' }}>
+              👥 Сформировать команды
+            </h2>
+
+            {teamFormError && (
+              <div style={{
+                background: 'rgba(255, 107, 107, 0.2)',
+                border: '1px solid #ff6b6b',
+                color: '#ff6b6b',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '15px',
+                fontSize: '14px',
+              }}>
+                {teamFormError}
+              </div>
+            )}
+
+            {teamFormSuccess && (
+              <div style={{
+                background: 'rgba(81, 207, 102, 0.2)',
+                border: '1px solid #51cf66',
+                color: '#51cf66',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '15px',
+                fontSize: '14px',
+              }}>
+                {teamFormSuccess}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                color: '#00d4ff',
+                fontSize: '14px',
+                fontWeight: '500',
+              }}>
+                📊 Количество команд (1 команда = 5 человек)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={numTeams}
+                onChange={(e) => setNumTeams(parseInt(e.target.value) || 1)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  border: '1px solid #00d4ff',
+                  color: '#00d4ff',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{
+                fontSize: '12px',
+                color: 'rgba(0, 212, 255, 0.6)',
+                marginTop: '5px',
+              }}>
+                Потребуется {numTeams * 5} участников
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '10px',
+            }}>
+              <button
+                onClick={() => setShowTeamFormModal(false)}
+                style={{
+                  padding: '12px',
+                  background: 'rgba(255, 107, 107, 0.1)',
+                  border: '1px solid #ff6b6b',
+                  color: '#ff6b6b',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                }}
+              >
+                ❌ Отмена
+              </button>
+              <button
+                onClick={handleFormTeams}
+                disabled={formingTeams}
+                style={{
+                  padding: '12px',
+                  background: 'rgba(76, 175, 80, 0.3)',
+                  border: '1px solid #51cf66',
+                  color: '#51cf66',
+                  borderRadius: '8px',
+                  cursor: formingTeams ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  opacity: formingTeams ? 0.6 : 1,
+                }}
+              >
+                {formingTeams ? '⏳ Формирование...' : '✅ Сформировать'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ===== ВКЛАДКА ВЫДАЧА ЗВЕЗД ===== */}

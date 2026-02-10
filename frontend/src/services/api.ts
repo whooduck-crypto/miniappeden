@@ -266,6 +266,14 @@ export const tournamentAPI = {
     });
   },
 
+  // Сформировать команды для турнира
+  formTeams(tournamentId: number, numTeams: number) {
+    return apiRequest(`/tournaments/${tournamentId}/form-teams`, {
+      method: 'POST',
+      body: { numTeams },
+    });
+  },
+
   // Получить активные турниры
   getActiveTournaments() {
     return apiRequest('/tournaments?status=active');

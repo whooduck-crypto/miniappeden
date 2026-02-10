@@ -2,7 +2,7 @@
  * Типы данных для турниров
  */
 
-export type ParticipantRole = 'mider' | 'roumer'
+export type ParticipantRole = 'roamer' | 'holder' | 'expert' | 'lesnik' | 'mider'
 
 export interface Tournament {
   id: number
@@ -47,4 +47,15 @@ export interface TournamentResult {
   prize: number
   score: number
   role?: ParticipantRole
+}
+
+export interface TeamMember {
+  userId: number
+  username: string
+  role: ParticipantRole
+}
+
+export interface Team {
+  id?: number
+  members: TeamMember[]
 }
