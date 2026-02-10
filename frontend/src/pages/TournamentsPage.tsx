@@ -31,6 +31,18 @@ function formatDate(dateString: string): string {
   }
 }
 
+function getStatusBadge(status: string): string {
+  if (status === 'active') return '🔴 Активный'
+  if (status === 'pending') return '⏰ Ожидание'
+  return '✅ Завершен'
+}
+
+function getStatusClass(status: string): string {
+  if (status === 'active') return 'active'
+  if (status === 'pending') return 'upcoming'
+  return 'finished'
+}
+
 export function TournamentsPage() {
   const navigate = useNavigate()
   const user = getTelegramUserInfo()
