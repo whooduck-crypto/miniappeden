@@ -58,8 +58,21 @@ export function getTelegramUserId(): number | null {
     console.log('⚠️ Ошибка парсинга WebApp.initData')
   }
   
-  console.log('❌ User ID не найден')
-  return null
+  // Fallback для разработки в браузере: использовать mock user
+  console.log('ℹ️ Telegram не доступен. Используем mock ID для разработки')
+  return getMockUserId()
+}
+
+/**
+ * Получить mock ID пользователя для разработки
+ */
+function getMockUserId(): number {
+  const stored = sessionStorage.getItem('debug_user_id');
+  if (stored) return parseInt(stored);
+  
+  const mockId = 123456789;
+  sessionStorage.setItem('debug_user_id', mockId.toString());
+  return mockId;
 }
 
 /**

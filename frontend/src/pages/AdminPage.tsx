@@ -5,6 +5,32 @@ import { canAccessAdminPanel } from '../config/admin'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 import type { CreateTournamentData } from '../types/tournaments'
 
+/**
+ * Функция для правильного парсинга и форматирования дат
+ * Преобразует ISO 8601 строку в локальную дату
+ */
+function formatDate(dateString: string): string {
+  try {
+    // Парсим ISO 8601 дату
+    const date = new Date(dateString)
+    
+    // Проверяем, что дата валидна
+    if (isNaN(date.getTime())) {
+      return 'N/A'
+    }
+    
+    // Форматируем в локальную дату (ru-RU)
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    })
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error)
+    return 'N/A'
+  }
+}
+
 export function AdminPage() {
   const user = getTelegramUserInfo()
   const userId = user?.id
@@ -30,8 +56,8 @@ export function AdminPage() {
   const [formData, setFormData] = useState<CreateTournamentData>({
     name: '',
     description: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    startDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + 86400000).toISOString(),
     maxParticipants: 32,
     entryFee: 100,
     prizePool: 1000,
@@ -61,6 +87,8 @@ export function AdminPage() {
       ...prev,
       [name]: name.includes('Participants') || name.includes('Fee') || name.includes('Pool')
         ? parseInt(value) || 0
+        : name === 'startDate' || name === 'endDate'
+        ? value ? new Date(value).toISOString() : ''
         : value,
     }))
   }
@@ -79,8 +107,8 @@ export function AdminPage() {
       setFormData({
         name: '',
         description: '',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 86400000).toISOString(),
         maxParticipants: 32,
         entryFee: 100,
         prizePool: 1000,
@@ -357,7 +385,7 @@ export function AdminPage() {
                   <input
                     type="date"
                     name="startDate"
-                    value={formData.startDate}
+                    value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
                     onChange={handleInputChange}
                     required
                     style={{
@@ -379,7 +407,7 @@ export function AdminPage() {
                   <input
                     type="date"
                     name="endDate"
-                    value={formData.endDate}
+                    value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
                     onChange={handleInputChange}
                     required
                     style={{
@@ -562,7 +590,7 @@ export function AdminPage() {
                       <div>
                         <div style={{ fontSize: '12px', opacity: 0.7 }}>Дата</div>
                         <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                          {new Date(tournament.startDate).toLocaleDateString('ru-RU')}
+                          {formatDate(tournament.startDate)}
                         </div>
                       </div>
                     </div>

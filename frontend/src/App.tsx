@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+=======
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 import { Navigation } from './components/Navigation'
 import { DebugPanel } from './components/DebugPanel'
 import { HomePage } from './pages/HomePage'
@@ -11,11 +15,60 @@ import { ProfilePage } from './pages/ProfilePage'
 import { AdminPage } from './pages/AdminPage'
 import { getTelegramUserInfo } from './config/telegram'
 import { getTelegramUserId, isAdmin, ADMIN_CONFIG } from './config/admin'
+import { userAPI } from './services/api'
 import './App.css'
 
 function AppContent() {
+<<<<<<< HEAD
   const [currentPage, setCurrentPage] = useState('home')
+=======
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
   const [debugInfo, setDebugInfo] = useState<any>(null)
+  const location = useLocation()
+
+  // Инициализация пользователя при первом входе
+  useEffect(() => {
+    const initializeUser = async () => {
+      try {
+        const user = getTelegramUserInfo()
+        const userId = getTelegramUserId()
+
+        if (!userId || !user) {
+          console.warn('⚠️ Cannot initialize user: missing Telegram data')
+          return
+        }
+
+        console.log('👤 Initializing user:', { userId, username: user.username })
+
+        // Пытаемся получить пользователя
+        try {
+          const existingUser = await userAPI.getProfile(userId)
+          console.log('✅ User exists, updating...', existingUser)
+
+          // Обновляем данные пользователя
+          await userAPI.updateProfile(userId, {
+            username: user.username,
+            firstName: user.first_name || 'User',
+          })
+          console.log('✅ User data updated')
+        } catch (err) {
+          // Если пользователь не найден, создаем его
+          console.log('👤 User not found, creating new...')
+
+          const newUser = await userAPI.createUser({
+            telegramId: userId,
+            username: user.username,
+            firstName: user.first_name || 'User',
+          })
+          console.log('✅ User created successfully:', newUser)
+        }
+      } catch (err) {
+        console.error('❌ Error initializing user:', err)
+      }
+    }
+
+    initializeUser()
+  }, [])
 
   // Инициализация Telegram WebApp
   useEffect(() => {
@@ -61,24 +114,12 @@ function AppContent() {
     })
   }, [])
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return <HomePage />
-      case 'tournaments':
-        return <TournamentsPage />
-      case 'rating':
-        return <RatingPage />
-      case 'shop':
-        return <ShopPage />
-      case 'profile':
-        return <ProfilePage />
-      case 'admin':
-        return <AdminPage />
-      default:
-        return <HomePage />
-    }
-  }
+  // Определяем текущую страницу для навигации
+  const currentPage = location.pathname.startsWith('/tournament/')
+    ? 'tournaments'
+    : location.pathname === '/'
+    ? 'home'
+    : location.pathname.replace('/', '') || 'home'
 
   return (
     <div className="app-container">
@@ -94,7 +135,7 @@ function AppContent() {
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </main>
-      <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Navigation currentPage={currentPage} onNavigate={() => {}} />
     </div>
   )
 }

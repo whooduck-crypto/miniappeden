@@ -1,17 +1,52 @@
 import '../App.css'
+<<<<<<< HEAD
 import { useState, useEffect } from 'react'
+=======
+import { useState, useEffect, useRef } from 'react'
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 import { useNavigate } from 'react-router-dom'
 import { getTelegramUserInfo } from '../config/telegram'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
 import type { Tournament } from '../types/tournaments'
 
+/**
+ * Функция для правильного парсинга и форматирования дат
+ * Преобразует ISO 8601 строку в локальную дату
+ */
+function formatDate(dateString: string): string {
+  try {
+    // Парсим ISO 8601 дату
+    const date = new Date(dateString)
+    
+    // Проверяем, что дата валидна
+    if (isNaN(date.getTime())) {
+      return 'N/A'
+    }
+    
+    // Форматируем в локальную дату (ru-RU)
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    })
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error)
+    return 'N/A'
+  }
+}
+
 export function TournamentsPage() {
+  const navigate = useNavigate()
   const user = getTelegramUserInfo()
   const userId = user?.id
   const navigate = useNavigate()
 
   const { tournaments, loading, error, fetchTournaments } = useTournamentManagement()
   const [filter, setFilter] = useState<'all' | 'active' | 'upcoming'>('all')
+<<<<<<< HEAD
+=======
+  const previousTournamentsRef = useRef<typeof tournaments>(null)
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
 
   useEffect(() => {
     fetchTournaments()
@@ -31,6 +66,19 @@ export function TournamentsPage() {
     return true
   })
 
+<<<<<<< HEAD
+=======
+  const handleJoin = (tournamentId: number) => {
+    if (!userId) {
+      alert('❌ Требуется авторизация в Telegram')
+      return
+    }
+
+    // Открываем страницу деталей турнира
+    navigate(`/tournament/${tournamentId}`)
+  }
+
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
   const getStatusBadge = (status: string) => {
     if (status === 'active') return '🔴 Активный'
     if (status === 'pending') return '⏰ Ожидание'
@@ -117,6 +165,7 @@ export function TournamentsPage() {
 
               <p className="tournament-description">{tournament.description}</p>
 
+<<<<<<< HEAD
               <div className="tournament-stats">
                 <div className="stat">
                   <div className="stat-label">Участники</div>
@@ -148,6 +197,48 @@ export function TournamentsPage() {
               <div className="tournament-footer">
                 <span className="view-details">Подробнее →</span>
               </div>
+=======
+              <div className="tournament-info">
+                <div className="info-row">
+                  <span>👥 Участники:</span>
+                  <span className="info-value">
+                    {tournament.currentParticipants || 0}/{tournament.maxParticipants || 0}
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span>💰 Вход:</span>
+                  <span className="info-value">{tournament.entryFee || 0}</span>
+                </div>
+                <div className="info-row">
+                  <span>🎁 Призовой:</span>
+                  <span className="info-value prize">{tournament.prizePool || 0}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                  📅 {tournament.startDate ? formatDate(tournament.startDate) : 'N/A'}
+                </div>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                  🏁 {tournament.endDate ? formatDate(tournament.endDate) : 'N/A'}
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleJoin(tournament.id)}
+                disabled={tournament.status === 'finished'}
+                className={`btn ${
+                  tournament.status === 'finished'
+                    ? 'btn-disabled'
+                    : 'btn-primary'
+                }`}
+                style={{ width: '100%', marginTop: '12px' }}
+              >
+                {tournament.status === 'finished'
+                  ? '✅ Завершен'
+                  : '➕ Подробнее / Присоединиться'}
+              </button>
+>>>>>>> f6e6efebfb8623d4fe58cf21d0a2749b1f6a81ea
             </div>
           ))}
         </div>
