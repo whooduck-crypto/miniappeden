@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { getTelegramUserInfo } from '../config/telegram'
 import { canAccessAdminPanel } from '../config/admin'
 import { useTournamentManagement } from '../hooks/useTournamentManagement'
+import { tournamentAPI } from '../services/api'
 import type { CreateTournamentData } from '../types/tournaments'
 
 /**
@@ -181,20 +182,7 @@ export function AdminPage() {
 
     setFormingTeams(true)
     try {
-      const response = await fetch(`/api/tournaments/${selectedTournamentId}/form-teams`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ numTeams }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Ошибка формирования команд')
-      }
-
-      const result = await response.json()
+      const result = await tournamentAPI.formTeams(selectedTournamentId, numTeams)
       setTeamFormSuccess(`✅ ${numTeams} команд успешно сформированы!`)
       setShowTeamFormModal(false)
       
