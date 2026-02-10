@@ -69,6 +69,10 @@ export function TournamentsPage() {
     return true
   })
 
+  const handleTournamentClick = (tournamentId: number) => {
+    navigate(`/tournament/${tournamentId}`)
+  }
+
   return (
     <div className="page tournaments-page">
       <h1>🏆 Турниры</h1>
