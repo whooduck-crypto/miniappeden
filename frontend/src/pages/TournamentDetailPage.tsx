@@ -5,6 +5,8 @@ import { getTelegramUserInfo } from '../config/telegram'
 import { tournamentAPI } from '../services/api'
 import type { Tournament } from '../types/tournaments'
 
+const ROLES = ['Roamer', 'Holder', 'Expert', 'Lesnik', 'Mider']
+
 export function TournamentDetailPage() {
   const { tournamentId } = useParams<{ tournamentId: string }>()
   const navigate = useNavigate()
@@ -17,6 +19,8 @@ export function TournamentDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false)
   const [registering, setRegistering] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchTournament = async () => {
@@ -52,9 +56,26 @@ export function TournamentDetailPage() {
       return
     }
 
+    // Показываем модальное окно для выбора роли
+    setShowRoleModal(true)
+  }
+
+  const handleRoleSelect = async (role: string) => {
+    setShowRoleModal(false)
+    setSelectedRole(role)
+    
     setRegistering(true)
     try {
-      await tournamentAPI.joinTournament(userId, parseInt(tournamentId || '0'))
+      // Получаем gameId и serverId из localStorage
+      const gameId = localStorage.getItem(`gameId_${userId}`) || ''
+      const serverId = localStorage.getItem(`serverId_${userId}`) || ''
+
+      await tournamentAPI.joinTournament(userId, parseInt(tournamentId || '0'), {
+        role,
+        username: user?.username || `User${userId}`,
+        gameId,
+        serverId,
+      })
       setIsRegistered(true)
       alert('✅ Вы успешно зарегистрировались!')
       // Обновляем данные турнира
@@ -290,6 +311,85 @@ export function TournamentDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Role Selection Modal */}
+      {showRoleModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#1a1a2e',
+            border: '2px solid #00d4ff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 0 20px rgba(0, 212, 255, 0.3)',
+          }}>
+            <h2 style={{ color: '#00d4ff', marginBottom: '20px', textAlign: 'center' }}>
+              🎯 Выберите вашу роль
+            </h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr',
+              gap: '10px',
+            }}>
+              {ROLES.map((role) => (
+                <button
+                  key={role}
+                  onClick={() => handleRoleSelect(role)}
+                  style={{
+                    padding: '12px',
+                    background: 'rgba(0, 212, 255, 0.1)',
+                    border: '1px solid #00d4ff',
+                    color: '#00d4ff',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 212, 255, 0.2)'
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowRoleModal(false)}
+              style={{
+                marginTop: '15px',
+                width: '100%',
+                padding: '10px',
+                background: 'rgba(255, 107, 107, 0.1)',
+                border: '1px solid #ff6b6b',
+                color: '#ff6b6b',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

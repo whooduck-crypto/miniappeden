@@ -770,9 +770,9 @@ app.delete('/api/tournaments/:tournamentId', async (req, res) => {
 app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
   try {
     const tournamentId = parseInt(req.params.tournamentId);
-    const { userId, role, username } = req.body;
+    const { userId, role, username, gameId, serverId } = req.body;
 
-    console.log('🔗 Join Tournament Request:', { tournamentId, userId, role, username });
+    console.log('🔗 Join Tournament Request:', { tournamentId, userId, role, username, gameId, serverId });
 
     // Получить турнир
     const tournamentResult = await pool.query('SELECT * FROM tournaments WHERE id = $1', [tournamentId]);
@@ -790,16 +790,24 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
       console.log('👤 User not found, creating new user:', userId);
       // Создаем пользователя если его нет
       const createUserResult = await pool.query(
-        `INSERT INTO users (telegram_id, username, balance, stars, level, experience, wins, losses)
-         VALUES ($1, $2, 1000, 0, 1, 0, 0, 0)
+        `INSERT INTO users (telegram_id, username, balance, stars, level, experience, wins, losses, game_id, server_id)
+         VALUES ($1, $2, 1000, 0, 1, 0, 0, 0, $3, $4)
          RETURNING *`,
-        [userId, username || `User${userId}`]
+        [userId, username || `User${userId}`, gameId || '', serverId || '']
       );
       user = createUserResult.rows[0];
       console.log('✅ User created:', user.telegram_id);
     } else {
       user = userResult.rows[0];
       console.log('✅ User found:', user.telegram_id);
+      
+      // Обновляем game_id и server_id если они предоставлены
+      if (gameId || serverId) {
+        await pool.query(
+          `UPDATE users SET game_id = COALESCE($1, game_id), server_id = COALESCE($2, server_id), updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $3`,
+          [gameId || null, serverId || null, userId]
+        );
+      }
     }
 
     // Проверить ограничения
@@ -809,21 +817,6 @@ app.post('/api/tournaments/:tournamentId/join', async (req, res) => {
 
     if (user.balance < tournament.entry_fee) {
       return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    // Проверить наличие game_id и server_id
-    if (!user.game_id || user.game_id.trim() === '') {
-      return res.status(400).json({ 
-        error: 'Missing game_id',
-        message: 'Вы не указали game_id. Обновите ваш профиль в приложении.' 
-      });
-    }
-
-    if (!user.server_id || user.server_id.trim() === '') {
-      return res.status(400).json({ 
-        error: 'Missing server_id',
-        message: 'Вы не указали server_id. Обновите ваш профиль в приложении.' 
-      });
     }
 
     // Проверить, не участвует ли уже

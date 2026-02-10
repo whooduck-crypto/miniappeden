@@ -239,10 +239,10 @@ export const tournamentAPI = {
   },
 
   // Присоединиться к турниру
-  joinTournament(userId: number, tournamentId: number) {
+  joinTournament(userId: number, tournamentId: number, options?: { role?: string; username?: string; gameId?: string; serverId?: string }) {
     return apiRequest(`/tournaments/${tournamentId}/join`, {
       method: 'POST',
-      body: { userId },
+      body: { userId, ...options },
     });
   },
 
